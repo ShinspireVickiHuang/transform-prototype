@@ -44,6 +44,10 @@ textarea.inp{height:auto;padding:8px 12px;line-height:1.6;resize:vertical}
   .orow{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
   .orow > *:nth-child(2){order:-1;flex:1 1 100%}
 }
+.statg{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(200px,100%),1fr));gap:16px}
+.gear{position:fixed;right:14px;bottom:14px;width:34px;height:34px;border-radius:17px;border:1px solid #E3E3E3;background:#fff;color:#999;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:60;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+@media (max-width:899px){.gear{width:36px;height:36px;background:rgba(255,255,255,.85);bottom:12px;right:12px}.page{padding-bottom:72px}}
+@media (max-width:599px){.statg{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media print{aside,header,.noprint{display:none !important}}
 </style>
 <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
@@ -644,7 +648,7 @@ function HomePage({ records, go, openRecord }) {
             <StatusTag s={last.status} />
           </div>
           <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 12 }}>{an.title}</div>
-          <div className="three" style={{ gap: 12 }}>
+          <div className="statg" style={{ gap: 12 }}>
             <Mini l="每年可省下" v={fmt(an.total) + ' 小時'} />
             <Mini l="約等於全職人力" v={fmt(an.fte, 1) + ' 人'} />
             <Mini l="最值得先做" v={an.top.length ? an.top[0].p.name : '—'} />
@@ -1507,7 +1511,7 @@ function StatsPage({ opps, onOpen }) {
   return (
     <div className="page">
       <PageHead title="成效與結算" sub="收到的機會、回覆情況與成交案的結算進度。" />
-      <div className="cards" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(200px,100%),1fr))', marginBottom: 24 }}>
+      <div className="statg" style={{ marginBottom: 24 }}>
         {k('收到機會數', recv, '累計')}{k('回覆率', recv ? fmt(replied / recv * 100) + '%' : '—', replied + ' / ' + recv + ' 筆已回覆')}{k('有興趣數', interested)}{k('成交數', won.length)}
       </div>
       <div style={{ fontSize: 16, fontWeight: 500, marginBottom: 10 }}>結算列表</div>
@@ -1669,7 +1673,7 @@ function App() {
         {!mobile && <Header crumbs={crumbs} />}
         <div ref={scroller} style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', background: '#FAFCFF', minWidth: 0 }}>{screen}</div>
       </div>
-      <button type="button" aria-label="示範設定" onClick={() => setDemoOpen(!demoOpen)} style={{ position: 'fixed', right: 14, bottom: 14, width: 34, height: 34, borderRadius: 17, border: '1px solid #E3E3E3', background: '#fff', color: '#999', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 60, boxShadow: '0 2px 8px rgba(0,0,0,.08)' }}><Icon name="gear" size={16} /></button>
+      {!(mobile && menuOpen) && <button type="button" className="gear" aria-label="示範設定" onClick={() => setDemoOpen(!demoOpen)}><Icon name="gear" size={16} /></button>}
       {demoOpen && (
         <div role="dialog" aria-label="示範設定" style={{ position: 'fixed', right: 14, bottom: 56, width: 300, maxWidth: 'calc(100vw - 28px)', background: '#fff', border: '1px solid #E3E3E3', borderRadius: 8, boxShadow: '0 10px 30px rgba(35,55,128,.18)', padding: 16, zIndex: 60 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}><b style={{ fontWeight: 500 }}>示範設定</b><button type="button" aria-label="關閉示範設定" onClick={() => setDemoOpen(false)} style={{ border: 0, background: 'none', color: '#999', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button></div>
