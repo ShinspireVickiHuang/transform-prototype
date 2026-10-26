@@ -1,0 +1,1691 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>找數位轉型｜SENSE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+html,body,#root{height:100%;margin:0}
+body{font-family:'Noto Sans TC','DM Sans',system-ui,sans-serif;color:#323232;background:#FAFCFF;font-size:14px;-webkit-text-size-adjust:100%}
+*{box-sizing:border-box}
+button{font-family:inherit}
+#root{display:flex}
+.inp{width:100%;height:34px;padding:0 12px;font-size:14px;border:1px solid #E3E3E3;background:#fff;color:#323232;border-radius:4px;outline:none;font-family:inherit}
+textarea.inp{height:auto;padding:8px 12px;line-height:1.6;resize:vertical}
+.inp:focus{border-color:#49BFBB;background:#F5FFFF}
+.inp.bad{border-color:#FF4D4F}
+.lbl{font-size:13px;color:#323232;font-weight:500;margin-bottom:4px;display:block}
+.page{padding:24px;max-width:1200px;margin:0 auto;min-width:0}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(320px,100%),1fr));gap:16px}
+.three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.fields3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.trial-grid{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:20px;align-items:start}
+.rrow{display:grid;grid-template-columns:130px minmax(0,1.2fr) minmax(0,1.6fr) 120px 110px 150px;gap:12px;align-items:center;padding:12px 16px}
+.rhead{font-size:12px;color:#999;background:#FAFAFA;border-bottom:1px solid #EBEEF5}
+.rbody{border-bottom:1px solid #F1F3F6;cursor:pointer;font-size:13px}
+.rbody:hover{background:#F7FFFF}
+.hov:hover{border-color:#49BFBB !important;box-shadow:0 6px 16px rgba(35,55,128,.10) !important}
+.navit:hover{background:#FAFAFA}
+.steps{display:flex;gap:8px;margin-bottom:16px}
+@media (max-width:899px){
+  .page{padding:16px}
+  .three,.two,.kpis,.fields,.fields3{grid-template-columns:minmax(0,1fr)}
+  .trial-grid{grid-template-columns:minmax(0,1fr)}
+  .rhead{display:none}
+  .rrow{grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;padding:12px}
+  .rrow > *:nth-child(3){grid-column:1 / -1}
+  .steps{overflow:hidden}
+  .orow{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
+  .orow > *:nth-child(2){order:-1;flex:1 1 100%}
+}
+@media print{aside,header,.noprint{display:none !important}}
+</style>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useMemo, useRef } = React;
+
+/* ============================================================
+   共用資料物件：題目、試算假設、24 個情境、示範評估紀錄
+   所有頁面都從 DM 讀取，不各自造資料
+   ============================================================ */
+const fmt = (n, d) => Number(n).toLocaleString('zh-TW', { maximumFractionDigits: d || 0, minimumFractionDigits: d || 0 });
+const num = (x) => { const v = parseFloat(x); return isFinite(v) && v >= 0 ? v : 0; };
+const pct = (c) => fmt(c * 100) + '%';
+
+const DM = {};
+DM.BASE = { workDays: 240, dayHours: 8 };
+DM.HIGH = 300;
+DM.INDUSTRIES = ['資訊服務業', '製造業', '零售／電商', '金融／保險', '不動產／建設', '服務業', '專業服務（顧問、會計、法律）', '其他'];
+DM.SYSTEMS = [['erp', 'ERP'], ['acct', '會計系統'], ['pos', 'POS／電商平台'], ['crm', 'CRM 客戶管理'], ['cms', '官網後台'], ['eip', '內部入口／公文系統'], ['excel', '主要靠 Excel'], ['other', '其他'], ['none', '都沒有']];
+DM.CLOUD = [['yes', '可以'], ['part', '部分可以，敏感資料要留在公司內'], ['no', '不行，全部要留在公司內']];
+DM.SCATTER = [['one', '集中在一套系統'], ['some', '分散在兩三套系統'], ['many', '分散在多套系統和個人 Excel']];
+DM.BUDGETS = ['尚未決定', '50 萬以下', '50–150 萬', '150–300 萬', '300 萬以上'];
+DM.WANT_TIMES = ['3 個月內', '3–6 個月', '6–12 個月', '尚未決定'];
+DM.ROLES = [['all', '全體員工平均'], ['mkt', '行銷人員'], ['sales', '業務／主管'], ['cs', '客服人員'], ['admin', '財務／行政人員']];
+DM.STATUS = {
+  done: { label: '評估完成', color: 'default' },
+  seeking: { label: '尋找合適方案中', color: 'blue' },
+  proposal: { label: '有方案待您確認', color: 'warning' },
+  scheduled: { label: '已安排洽談', color: 'success' },
+  advisor: { label: '顧問聯繫中', color: 'brand' }
+};
+DM.STAGES = ['done', 'seeking', 'proposal', 'scheduled'];
+DM.DEPTS = ['行銷', '業務', '客服', '財務', '人資', '採購', '行政與 IT', '管理層'];
+DM.TYPES = ['AI', '自動化', '系統導入'];
+DM.REFS = [
+  '企業平均使用 897 套應用程式，只有 29% 有串接（MuleSoft Connectivity Benchmark 2025，1,050 位 IT 主管）',
+  '81% 行銷人員要靠工程師修改網站，將近一半說改一次要好幾天（ButterCMS 2025，CMS 廠商調查）'
+];
+
+// 8 項試算項目：自評與試算共用同一份假設
+// calc 回傳每年省下的小時數（已含改善幅度）；diff 為導入難度 1–3；needData 表示需要客戶資料整合為前提
+DM.ITEMS = [
+  { id: 'cms', role: 'mkt', group: 'ai', name: 'AI 內容助理', title: '網站內容要常常更新',
+    desc: '活動、商品、公告等內容，每次要寫文案、改網頁', tdesc: 'AI 協助撰寫、改寫網站內容，行銷人員自己上線，不必等工程師',
+    why: 'AI 協助撰寫、改寫內容，行銷人員自己上線，不必等工程師', diff: 1, cut: 40, cutLabel: '撰寫與上稿時間減少',
+    fields: [{ k: 'n', l: '每月更新幾次', d: 20, s: 1 }, { k: 'h', l: '每次撰寫與上稿（小時）', d: 2, s: 0.5 }],
+    calc: (v, c) => v.n * v.h * 12 * c,
+    how: (v, c) => `${fmt(v.n)} 次 × ${fmt(v.h, 1)} 小時 × 12 個月 × 減少 ${pct(c)}` },
+  { id: 'tag', role: 'mkt', group: 'ai', name: 'AI 自動貼標', title: '客戶名單靠人工整理、分類',
+    desc: '例如手動標記 VIP、潛在客戶、沉睡客戶', tdesc: '依客戶行為自動分類貼標，取代人工整理名單',
+    why: '依客戶行為自動分類貼標，行銷活動可以直接鎖定對象', diff: 2, needData: true, cut: 80, cutLabel: '人工貼標時間減少',
+    fields: [{ k: 'n', l: '每月要分類的客戶筆數', d: 1000, s: 100 }, { k: 'm', l: '每筆人工分類（分鐘）', d: 1, s: 0.5 }],
+    calc: (v, c) => v.n * v.m / 60 * 12 * c,
+    how: (v, c) => `${fmt(v.n)} 筆 × ${fmt(v.m, 1)} 分鐘 × 12 個月 × 減少 ${pct(c)}` },
+  { id: 'journey', role: 'mkt', group: 'auto', name: '行銷自動化旅程', title: '行銷活動要人工分眾、一波一波發送',
+    desc: '例如會員生日禮、新品通知、久未回購提醒，每次要撈名單、設定發送', tdesc: '依客戶行為自動分眾、自動發送，不必每波人工撈名單',
+    why: '依客戶行為自動觸發，名單與發送時機由系統處理，行銷人員專心規劃活動內容', diff: 2, needData: true, cut: 70, cutLabel: '人工分眾與設定時間減少',
+    fields: [{ k: 'n', l: '每月發送幾波', d: 8, s: 1 }, { k: 'h', l: '每波人工分眾與設定（小時）', d: 3, s: 0.5 }],
+    calc: (v, c) => v.n * v.h * 12 * c,
+    how: (v, c) => `${fmt(v.n)} 波 × ${fmt(v.h, 1)} 小時 × 12 個月 × 減少 ${pct(c)}` },
+  { id: 'insight', role: 'sales', group: 'ai', name: 'AI 客情分析', title: '業務或主管要花時間整理客戶報表',
+    desc: '例如業績分析、客戶互動紀錄、回購情況', tdesc: '自動彙整客戶互動與消費紀錄，產出分析摘要',
+    why: '自動彙整客戶互動與消費紀錄，產出分析摘要給業務與主管', diff: 2, needData: true, cut: 60, cutLabel: '報表整理時間減少',
+    fields: [{ k: 'h', l: '每月整理報表（小時）', d: 20, s: 1 }],
+    calc: (v, c) => v.h * 12 * c,
+    how: (v, c) => `${fmt(v.h)} 小時 × 12 個月 × 減少 ${pct(c)}` },
+  { id: 'cs', role: 'cs', group: 'ai', name: 'AI 線上客服', title: '客服要回覆大量詢問',
+    desc: '電話、LINE、Email、官網表單', tdesc: '常見問題由 AI 先回覆，複雜問題轉真人',
+    why: '常見問題由 AI 先回覆，複雜問題轉給真人', diff: 2, cut: 30, cutLabel: '由 AI 直接回覆的比例',
+    fields: [{ k: 'n', l: '每月詢問數', d: 1500, s: 100 }, { k: 'm', l: '每則平均處理（分鐘）', d: 6, s: 1 }],
+    calc: (v, c) => v.n * v.m / 60 * 12 * c,
+    how: (v, c) => `${fmt(v.n)} 則 × ${fmt(v.m)} 分鐘 × 12 個月 × AI 回覆 ${pct(c)}` },
+  { id: 'ocr', role: 'admin', group: 'ai', name: 'AI 單據辨識（OCR）', title: '發票、收據、訂單要人工登打',
+    desc: '紙本或 PDF 單據，再打進會計或 ERP', tdesc: '發票、收據、訂單自動辨識，人工只需核對',
+    why: '自動辨識單據內容，人工只需核對', diff: 1, cut: 70, cutLabel: '登打時間減少',
+    fields: [{ k: 'n', l: '每月單據張數', d: 2000, s: 100 }, { k: 'm', l: '每張人工登打（分鐘）', d: 3, s: 0.5 }],
+    calc: (v, c) => v.n * v.m / 60 * 12 * c,
+    how: (v, c) => `${fmt(v.n)} 張 × ${fmt(v.m, 1)} 分鐘 × 12 個月 × 減少 ${pct(c)}（保留人工核對）` },
+  { id: 'ipaas', role: 'admin', group: 'auto', name: 'iPaaS 自動化串接', title: '同一筆資料要在不同系統重複輸入',
+    desc: '例如電商訂單再打進 ERP、客戶資料再打進會計系統', tdesc: '訂單、客戶、帳務資料在系統之間自動同步，不再人工重複輸入',
+    why: '系統之間自動同步，不再人工重複輸入，輸入錯誤也一起減少', diff: 2, cut: 80, cutLabel: '重複輸入減少',
+    fields: [{ k: 'p', l: '負責重複輸入的人數', d: 5, s: 1 }, { k: 'h', l: '每人每天花幾小時', d: 1, s: 0.5 }],
+    calc: (v, c, D) => v.p * v.h * c * D.workDays,
+    how: (v, c, D) => `${fmt(v.p)} 人 × ${fmt(v.h, 1)} 小時 × 減少 ${pct(c)} × ${fmt(D.workDays)} 天；人工輸入錯誤也一起減少` },
+  { id: 'eip', role: 'all', group: 'ai', name: 'EIP AI 知識助理', title: '員工常常找不到制度、文件或過去的資料',
+    desc: '問同事、翻信箱、翻資料夾', tdesc: '員工直接問 AI，即時找到制度、文件與歷史資料，不必到處翻找',
+    why: '員工直接問 AI，即時找到制度、文件與歷史資料', diff: 2, cut: 50, cutLabel: '找資料時間減少',
+    fields: [{ k: 'staff', l: '員工人數', d: 100, s: 1, trialOnly: true }, { k: 'm', l: '每人每天找資料（分鐘）', d: 30, s: 5 }],
+    calc: (v, c, D) => v.staff * v.m / 60 * c * D.workDays,
+    how: (v, c, D) => `${fmt(v.staff)} 人 × ${fmt(v.m)} 分鐘 × 減少 ${pct(c)} × ${fmt(D.workDays)} 天` }
+];
+DM.TRIAL_ORDER = ['ipaas', 'journey', 'cms', 'eip', 'ocr', 'cs', 'tag', 'insight'];
+DM.item = (id) => DM.ITEMS.find((x) => x.id === id);
+
+// 24 個情境（代碼、客戶的情況、解決方式）；item 為對應的試算項目，沒有則納入顧問評估
+DM.SCENARIOS = [
+  { code: 'MKT-01', dept: '行銷', type: 'AI', title: '網站內容要常常更新', sol: 'AI 內容助理', item: 'cms' },
+  { code: 'MKT-02', dept: '行銷', type: 'AI', title: '客戶名單靠人工分類', sol: 'AI 自動貼標', item: 'tag' },
+  { code: 'MKT-03', dept: '行銷', type: '自動化', title: '行銷活動人工分眾、逐波發送', sol: '行銷自動化旅程', item: 'journey' },
+  { code: 'MKT-04', dept: '行銷', type: '系統導入', title: '集點、優惠券、生日禮靠人工發放', sol: '電子集點與優惠券',
+    note: '會員的集點、優惠券與生日禮由人工記錄與發放，容易漏發或重複發。', sdesc: '以電子集點卡與優惠券取代人工發放，可串接 LINE 通知會員。' },
+  { code: 'MKT-05', dept: '行銷', type: '系統導入', title: '社團、公會的會員活動報名、報到靠人工', sol: '社群會員互動平台',
+    note: '活動報名名單與現場報到都靠人工整理，事後也難彙整出席紀錄。', sdesc: '線上活動報名、QR Code 報到，並建立會員之間可查詢的人脈索引。' },
+  { code: 'SAL-01', dept: '業務', type: 'AI', title: '整理客戶分析報表很花時間', sol: 'AI 客情分析', item: 'insight' },
+  { code: 'SAL-02', dept: '業務', type: '系統導入', title: '業務跟進靠記憶或 Excel', sol: '客戶關係管理＋AI 提醒',
+    note: '客戶跟進進度存在業務個人的記憶或 Excel，換人或請假時容易斷線。', sdesc: '把客戶與跟進紀錄集中到同一套系統，由 AI 提醒該聯絡的客戶與時機。' },
+  { code: 'SAL-03', dept: '業務', type: '自動化', title: '報價、合約要人工整理', sol: '報價合約自動化',
+    note: '每次報價與合約都要手動套版、核對條款與金額。', sdesc: '依客戶與品項自動帶出報價與合約內容，再交人工確認。' },
+  { code: 'CS-01', dept: '客服', type: 'AI', title: '客服要回覆大量詢問', sol: 'AI 線上客服', item: 'cs' },
+  { code: 'FIN-01', dept: '財務', type: 'AI', title: '發票、收據、訂單人工登打', sol: 'AI 單據辨識', item: 'ocr' },
+  { code: 'FIN-02', dept: '財務', type: 'AI', title: '費用報銷審核靠人工檢查', sol: '電子簽核＋AI 防弊',
+    note: '報銷單據要人工逐筆檢查是否重複、超標或不合規。', sdesc: '報銷走電子簽核，AI 先檢查異常與疑似重複，再送主管審核。' },
+  { code: 'FIN-03', dept: '財務', type: '自動化', title: '銀行、平台對帳靠人工', sol: '自動對帳',
+    note: '每月要把銀行與各平台的帳目逐筆比對，耗時又容易出錯。', sdesc: '系統自動比對各來源帳目，只把差異項目交給人工處理。' },
+  { code: 'HR-01', dept: '人資', type: 'AI', title: '招募時人工篩履歷', sol: 'AI 履歷篩選',
+    note: '履歷份數多時，每一份都要人工閱讀與初篩。', sdesc: 'AI 依職缺條件先行排序與摘要，招募人員再決定面試名單。' },
+  { code: 'HR-02', dept: '人資', type: '系統導入', title: '請假、出勤、薪資靠紙本或 Excel', sol: '人資系統',
+    note: '請假、出勤與薪資分散在紙本與 Excel，月底結算要重複核對。', sdesc: '以人資系統集中處理請假、出勤與薪資計算。' },
+  { code: 'SCM-01', dept: '採購', type: 'AI', title: '供應商報價要人工比對', sol: 'AI 文件比對',
+    note: '不同供應商的報價格式不一，要人工整理後才能比較。', sdesc: 'AI 讀取各份報價文件，整理成同一格式並標出差異。' },
+  { code: 'SCM-02', dept: '採購', type: 'AI', title: '備貨、庫存靠經驗判斷', sol: 'AI 需求預測',
+    note: '備貨量憑資深同仁的經驗估算，缺貨與庫存積壓都難避免。', sdesc: 'AI 依歷史銷售與季節變化預測需求，提供備貨建議。' },
+  { code: 'ADM-01', dept: '行政與 IT', type: '自動化', title: '同一筆資料在多個系統重複輸入', sol: '自動化串接', item: 'ipaas' },
+  { code: 'ADM-02', dept: '行政與 IT', type: '系統導入', title: '簽核靠紙本或 Email', sol: '電子簽核',
+    note: '簽核單據在紙本與 Email 間傳遞，進度難追蹤。', sdesc: '簽核流程上線，可隨時查看卡在哪一關，並留下完整紀錄。' },
+  { code: 'ADM-03', dept: '行政與 IT', type: 'AI', title: '員工找不到制度、文件、資料', sol: 'AI 知識助理', item: 'eip' },
+  { code: 'ADM-04', dept: '行政與 IT', type: '系統導入', title: '登入只靠密碼或簡訊 OTP，帳號安全有疑慮', sol: '多因素身分驗證',
+    note: '帳號只靠密碼或簡訊驗證碼，帳號被盜用的風險較高。', sdesc: '加入多因素身分驗證，登入時需再通過第二道驗證。' },
+  { code: 'ADM-05', dept: '行政與 IT', type: '自動化', title: '系統通知、警示要人工轉發給相關人員', sol: '訊息分流推播',
+    note: '系統產生的通知與警示，要有人看到後再手動轉給相關同仁。', sdesc: '依規則自動分流，並即時推播給對應的負責人。' },
+  { code: 'MGT-01', dept: '管理層', type: '自動化', title: '主管要等各部門彙整報表', sol: '自動化報表',
+    note: '主管要看全公司數字，必須等各部門各自整理後再彙整。', sdesc: '自動從各系統取數並產出報表，主管隨時查看。' },
+  { code: 'ECM-01', dept: '業務', type: '系統導入', title: '多個銷售通路的訂單、庫存分散', sol: '全通路電商營運', industry: '零售／電商',
+    note: '官網、平台與門市的訂單與庫存各自管理，容易超賣或漏出貨。', sdesc: '把各通路的訂單與庫存集中到同一個營運平台統一處理。' },
+  { code: 'RE-01', dept: '業務', type: '系統導入', title: '預售屋銷售、客變、驗屋靠人工', sol: '不動產數位流程', industry: '不動產／建設',
+    note: '銷售紀錄、客戶變更需求與驗屋缺失以人工登記與追蹤。', sdesc: '把銷售、客變與驗屋流程數位化，狀態可即時查詢。' }
+];
+DM.scenarioOfItem = (id) => DM.SCENARIOS.find((s) => s.item === id);
+
+// 問卷作答資料的空白模板
+DM.blankAnswers = () => ({ industry: '', staff: '', cloud: '', scatter: '', sys: [], sysOther: '', on: {}, v: {}, extra: '', budget: '', timeline: '',
+  cost: { all: '', mkt: '', sales: '', cs: '', admin: '' }, consent: false });
+// 範例：100 人資訊服務業，8 題全選、使用預設值
+DM.sampleAnswers = () => {
+  const a = DM.blankAnswers();
+  a.industry = '資訊服務業'; a.staff = 100; a.cloud = 'part'; a.scatter = 'many'; a.sys = ['erp', 'pos', 'excel'];
+  DM.ITEMS.forEach((p) => { a.on[p.id] = true; p.fields.filter((f) => !f.trialOnly).forEach((f) => { a.v[p.id + '.' + f.k] = f.d; }); });
+  return a;
+};
+// 示範評估紀錄（12 筆）：以精簡規格產生作答資料，報告由同一套算式算出
+DM.demoAnswers = (o) => {
+  const a = DM.blankAnswers();
+  a.industry = o.industry; a.staff = o.staff; a.cloud = o.cloud; a.scatter = o.scatter; a.sys = o.sys;
+  Object.keys(o.picks).forEach((id) => {
+    a.on[id] = true;
+    DM.item(id).fields.filter((f) => !f.trialOnly).forEach((f, i) => { a.v[id + '.' + f.k] = o.picks[id][i]; });
+  });
+  Object.assign(a.cost, o.cost || {});
+  a.consent = o.status !== 'done';
+  return a;
+};
+DM.DEMO_SPEC = [
+  { date: '2026-10-21', scope: '全公司', industry: '資訊服務業', staff: 122, cloud: 'part', scatter: 'many', sys: ['pos', 'erp', 'excel'], status: 'seeking',
+    picks: { ipaas: [6, 1], ocr: [2800, 3], eip: [30], cs: [1800, 6] }, cost: { all: 900000 } },
+  { date: '2026-10-08', scope: '客服部', industry: '資訊服務業', staff: 120, cloud: 'yes', scatter: 'many', sys: ['pos', 'crm'], status: 'proposal',
+    picks: { cs: [2400, 6] }, cost: { cs: 750000 } },
+  { date: '2026-09-17', scope: '行銷部', industry: '資訊服務業', staff: 118, cloud: 'yes', scatter: 'some', sys: ['pos', 'crm', 'cms'], status: 'scheduled',
+    picks: { cms: [28, 3], tag: [3000, 1], journey: [10, 4], insight: [24] }, cost: { mkt: 900000 } },
+  { date: '2026-08-26', scope: '財務部', industry: '資訊服務業', staff: 115, cloud: 'part', scatter: 'many', sys: ['erp', 'acct', 'excel'], status: 'proposal',
+    picks: { ocr: [3200, 3], ipaas: [4, 1.5] }, cost: { admin: 780000 } },
+  { date: '2026-07-30', scope: '營運部', industry: '資訊服務業', staff: 110, cloud: 'part', scatter: 'many', sys: ['pos', 'excel'], status: 'advisor', base: 'seeking',
+    picks: { ipaas: [5, 1], eip: [25], insight: [16] } },
+  { date: '2026-07-02', scope: '採購部', industry: '資訊服務業', staff: 106, cloud: 'part', scatter: 'many', sys: ['erp', 'excel'], status: 'done',
+    picks: { ocr: [1200, 4], ipaas: [3, 1] } },
+  { date: '2026-06-11', scope: '產品事業處', industry: '資訊服務業', staff: 102, cloud: 'yes', scatter: 'some', sys: ['pos', 'crm'], status: 'seeking',
+    picks: { cms: [20, 2], tag: [1800, 1], journey: [8, 3], cs: [1500, 6] }, cost: { all: 850000, mkt: 900000 } },
+  { date: '2026-05-14', scope: '全公司', industry: '資訊服務業', staff: 98, cloud: 'part', scatter: 'many', sys: ['pos', 'erp', 'excel'], status: 'done',
+    picks: { ipaas: [5, 1], ocr: [2000, 3], eip: [30], cs: [1500, 6], cms: [20, 2], tag: [1000, 1], journey: [8, 3], insight: [20] } },
+  { date: '2026-04-09', scope: '人資部', industry: '資訊服務業', staff: 95, cloud: 'yes', scatter: 'many', sys: ['excel', 'acct'], status: 'done',
+    picks: { eip: [30], ocr: [400, 3] } },
+  { date: '2026-02-24', scope: '客服部', industry: '資訊服務業', staff: 90, cloud: 'yes', scatter: 'many', sys: ['pos', 'excel'], status: 'scheduled',
+    picks: { cs: [1300, 6] }, cost: { cs: 720000 } },
+  { date: '2026-01-13', scope: '行銷部', industry: '資訊服務業', staff: 85, cloud: 'yes', scatter: 'many', sys: ['pos', 'excel'], status: 'done',
+    picks: { cms: [15, 2], tag: [800, 1], journey: [6, 3] } },
+  { date: '2025-11-18', scope: '財務部', industry: '資訊服務業', staff: 80, cloud: 'part', scatter: 'many', sys: ['erp', 'excel'], status: 'done',
+    picks: { ocr: [1800, 3], ipaas: [3, 1] }, cost: { all: 750000 } }
+];
+DM.DEMO_BUDGET = ['50–150 萬', '', '150–300 萬', '尚未決定', '', '50 萬以下', '300 萬以上', '50–150 萬', '', '150–300 萬', '', '50–150 萬'];
+DM.DEMO_WANT = ['3–6 個月', '', '6–12 個月', '尚未決定', '', '3 個月內', '3–6 個月', '3–6 個月', '', '6–12 個月', '', '3 個月內'];
+DM.demoRecords = () => DM.DEMO_SPEC.map((s, i) => {
+  const a = DM.demoAnswers(s); a.budget = DM.DEMO_BUDGET[i]; a.timeline = DM.DEMO_WANT[i];
+  return { id: 'EV-2026-' + String(i + 1).padStart(3, '0'), date: s.date, status: s.status, scope: s.scope, base: s.base || null, demo: true, answers: a };
+});
+
+/* ============================================================
+   算式：報告分析（自評與紀錄詳情共用）
+   ============================================================ */
+function analyze(A) {
+  const staff = num(A.staff), sys = A.sys || [];
+  const dataWeak = (A.scatter === 'many' || A.scatter === 'some' || sys.indexOf('crm') < 0);
+  const items = [];
+  DM.ITEMS.forEach((p) => {
+    if (!A.on[p.id]) return;
+    const v = {};
+    p.fields.forEach((f) => { v[f.k] = f.trialOnly ? staff : num(A.v[p.id + '.' + f.k]); });
+    const h = p.calc(v, p.cut / 100, DM.BASE);
+    const diff = Math.min(p.diff + (p.needData && dataWeak ? 1 : 0), 3);
+    items.push({ p, h, diff, pre: !!(p.needData && dataWeak) });
+  });
+  const total = items.reduce((s, i) => s + i.h, 0);
+  let money = 0, priced = 0;
+  items.forEach((i) => { const c = num(A.cost[i.p.role]) || num(A.cost.all); if (c > 0) { money += i.h / (DM.BASE.workDays * DM.BASE.dayHours) * c; priced++; } });
+  const ranked = items.slice().sort((x, y) => y.h / y.diff - x.h / x.diff);
+  const top = ranked.filter((i) => i.h >= 50).slice(0, 3);
+  const Q = { go: [], plan: [], easy: [], hold: [] };
+  items.forEach((i) => { const hi = i.h >= DM.HIGH, easy = i.diff <= 1; (hi && easy ? Q.go : hi ? Q.plan : easy ? Q.easy : Q.hold).push(i); });
+  const p1 = [], p2 = [], p3 = [];
+  if (items.some((i) => i.pre)) p1.push('先建立客戶資料基礎：整合各管道客戶資料' + (sys.indexOf('crm') < 0 ? '，搭配 CRM' : ''));
+  const pre = p1.length > 0;
+  top.forEach((i) => p1.push(i.p.name));
+  items.forEach((i) => { if (p1.indexOf(i.p.name) < 0 && Q.hold.indexOf(i) < 0) p2.push(i.p.name); });
+  Q.hold.forEach((i) => { if (p1.indexOf(i.p.name) < 0) p3.push(i.p.name); });
+  // 導入準備度
+  let score = 0; const tips = [];
+  const real = sys.filter((x) => x !== 'none' && x !== 'excel');
+  if (real.length) score += 25;
+  else if (sys.indexOf('excel') >= 0) tips.push('主要作業還在 Excel，建議先把核心流程放進系統，AI 與自動化才有資料可用。');
+  else tips.push('目前沒有使用系統，建議先把核心流程放進系統，AI 與自動化才有資料可用。');
+  if (sys.indexOf('erp') >= 0 || sys.indexOf('crm') >= 0 || sys.indexOf('acct') >= 0) score += 25;
+  else tips.push('尚未有 ERP、CRM 或會計系統，串接與分析的效益會受限。');
+  if (A.cloud === 'yes') score += 25;
+  else if (A.cloud === 'part') { score += 20; tips.push('敏感資料可留在公司內部，採地端與雲端混合部署。'); }
+  else if (A.cloud === 'no') { score += 15; tips.push('資料需全部留在公司內部，可採地端部署，導入時程會較長。'); }
+  else tips.push('尚未確認資料能否上雲，這會影響部署方式。');
+  if (A.scatter === 'one') score += 25;
+  else if (A.scatter === 'some') { score += 15; tips.push('客戶資料分散在兩三套系統，建議先整合，客情分析與自動貼標的效果才會出來。'); }
+  else if (A.scatter === 'many') { score += 5; tips.push('客戶資料分散在多套系統與個人 Excel，整合客戶資料是第一步。'); }
+  else tips.push('尚未確認客戶資料的存放狀況。');
+  const level = score >= 80 ? '基礎完善，可以直接從優先項目開始導入' : score >= 55 ? '具備基本條件，部分項目需要先打基礎' : '建議先完成資料與系統基礎，再導入 AI';
+  if (!tips.length) tips.push('系統與資料條件都已具備。');
+  const title = (A.industry ? A.industry + '・' : '') + (staff ? staff + ' 人規模・' : '') + 'AI 與自動化機會點';
+  return { items, total, fte: total / (DM.BASE.workDays * DM.BASE.dayHours), money, priced, top, Q, p1, p2, p3, pre, score, level, tips, title };
+}
+// 已勾選但數字沒填的項目
+function missingOf(A) {
+  const out = [];
+  DM.ITEMS.forEach((p, i) => {
+    if (!A.on[p.id]) return;
+    const noNum = p.fields.filter((f) => !f.trialOnly).some((f) => !(num(A.v[p.id + '.' + f.k]) > 0));
+    const noStaff = p.id === 'eip' && !(num(A.staff) > 0);
+    if (noNum || noStaff) out.push({ id: p.id, text: 'Q' + (6 + i) + ' ' + p.title + (noStaff ? '（也請填 Q2 員工人數）' : '') });
+  });
+  return out;
+}
+
+/* ============================================================
+   共用小元件
+   ============================================================ */
+function toast(msg) {
+  const id = '__tx_toast';
+  let el = document.getElementById(id);
+  if (!el) {
+    el = document.createElement('div'); el.id = id; el.setAttribute('role', 'status');
+    el.style.cssText = 'position:fixed;left:50%;bottom:40px;transform:translateX(-50%);background:rgba(30,42,48,.94);color:#fff;font-size:13px;padding:10px 20px;border-radius:6px;z-index:9999;max-width:90vw;text-align:center;box-shadow:0 6px 20px rgba(0,0,0,.18);opacity:0;transition:opacity .18s;pointer-events:none';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  requestAnimationFrame(() => { el.style.opacity = '1'; });
+  clearTimeout(el.__t);
+  el.__t = setTimeout(() => { el.style.opacity = '0'; }, 2400);
+}
+
+const TX = '#1E88A8', TEAL = '#49BFBB';
+const ICONS = {
+  menu: 'M3 6h18M3 12h18M3 18h18', close: 'M6 6l12 12M18 6L6 18', search: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.3-4.3',
+  back: 'M15 18l-6-6 6-6', chev: 'M6 9l6 6 6-6', arrow: 'M5 12h14M13 6l6 6-6 6',
+  clipboard: 'M9 4h6v3H9zM7 5H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2M8 12h8M8 16h5',
+  grid: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
+  calc: 'M6 3h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM8 7h8M8 12h2M12 12h2M16 12h0M8 16h2M12 16h2M16 16h0',
+  list: 'M4 6h16M4 12h16M4 18h16', phone: 'M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z',
+  check: 'M5 12l5 5 9-10', user: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+  doc: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M9 13h6M9 17h4',
+  market: 'M3 9l1.5-5h15L21 9M4 9v11h16V9M9 13h6', box: 'M4 4h16v4H4zM4 10h7v10H4zM13 10h7v4h-7zM13 16h7v4h-7z',
+  chart: 'M3 3v18h18M7 14l4-4 4 4 5-5', gear: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z', reset: 'M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5'
+};
+function Icon({ name, size = 18, style }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, ...style }}><path d={ICONS[name] || ICONS.grid} /></svg>;
+}
+
+function Button({ children, variant = 'primary', size = 'md', icon, disabled, onClick, danger, style, block }) {
+  const base = { fontWeight: 500, fontSize: 14, lineHeight: 1.5, borderRadius: 4, cursor: disabled ? 'not-allowed' : 'pointer',
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'background .15s, color .15s, border-color .15s',
+    border: '1px solid transparent', padding: size === 'sm' ? '2px 12px' : '6px 16px', height: size === 'sm' ? 28 : 34, whiteSpace: 'nowrap', width: block ? '100%' : undefined };
+  let c;
+  if (disabled) c = { background: '#F1F1F1', color: '#999', borderColor: '#F1F1F1' };
+  else if (danger) c = { background: '#FF4D4F', color: '#fff', borderColor: '#FF4D4F' };
+  else if (variant === 'primary') c = { background: TEAL, color: '#fff', borderColor: TEAL };
+  else if (variant === 'secondary') c = { background: '#fff', color: TEAL, borderColor: TEAL };
+  else if (variant === 'text') c = { background: 'transparent', color: '#22736F', borderColor: 'transparent', padding: '6px 10px' };
+  else c = { background: '#fff', color: '#323232', borderColor: '#E3E3E3' };
+  return (
+    <button type="button" onClick={!disabled ? onClick : undefined} style={{ ...base, ...c, ...style }}
+      onMouseEnter={(e) => !disabled && variant === 'primary' && !danger && (e.currentTarget.style.background = '#2CD9D9')}
+      onMouseLeave={(e) => !disabled && variant === 'primary' && !danger && (e.currentTarget.style.background = TEAL)}>
+      {icon}{children}
+    </button>
+  );
+}
+
+function Tag({ children, color = 'default', style }) {
+  const P = {
+    default: { bg: '#F1F1F1', fg: '#606266', bd: '#E3E3E3' }, brand: { bg: '#EDFFFF', fg: '#22736F', bd: '#DAFBFB' },
+    blue: { bg: '#E8F4FF', fg: '#1677D2', bd: '#BAE0FF' }, success: { bg: '#F2FBEA', fg: '#3F9A14', bd: '#D9F4C0' },
+    warning: { bg: '#FFF7E0', fg: '#B07A00', bd: '#FFE7A1' }, error: { bg: '#FEF1F1', fg: '#FF4D4F', bd: '#FDE2E2' },
+    demo: { bg: '#F5F3FF', fg: '#6B5B95', bd: '#E1DBF5' }
+  }[color] || {};
+  return <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 12, lineHeight: '18px', padding: '1px 8px', borderRadius: 2, whiteSpace: 'nowrap', background: P.bg, color: P.fg, border: '1px solid ' + P.bd, ...style }}>{children}</span>;
+}
+const TYPE_COLOR = { 'AI': 'blue', '自動化': 'brand', '系統導入': 'default' };
+const TYPE_TINT = { 'AI': '#6B5B95', '自動化': '#3E8E8A', '系統導入': '#4A6FA5' };
+
+function Card({ children, style, padding = 20, className, onClick }) {
+  return <div className={className} onClick={onClick} style={{ background: '#fff', border: '1px solid #EBEEF5', borderRadius: 5, boxShadow: '0 4px 12px 0 rgba(35,55,128,0.06)', padding, minWidth: 0, ...style }}>{children}</div>;
+}
+
+function Modal({ open, onClose, title, children, footer, width = 520 }) {
+  useEffect(() => { if (!open) return; const h = (e) => { if (e.key === 'Escape') onClose(); }; document.addEventListener('keydown', h); return () => document.removeEventListener('keydown', h); }, [open, onClose]);
+  if (!open) return null;
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 12 }} onClick={onClose}>
+      <div role="dialog" aria-label={title} onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 8, width, maxWidth: '100%', maxHeight: '92vh', display: 'flex', flexDirection: 'column', boxShadow: '0 10px 30px 0 rgba(35,55,128,0.2)', overflow: 'hidden' }}>
+        <div style={{ padding: '16px 24px', borderBottom: '1px solid #E3E3E3', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontSize: 16, fontWeight: 500 }}>{title}</div>
+          <button type="button" aria-label="關閉" onClick={onClose} style={{ cursor: 'pointer', color: '#999', fontSize: 22, lineHeight: 1, background: 'none', border: 0, padding: 4 }}>×</button>
+        </div>
+        <div style={{ padding: 24, fontSize: 14, lineHeight: 1.5, overflow: 'auto' }}>{children}</div>
+        {footer && <div style={{ padding: '12px 24px', borderTop: '1px solid #E3E3E3', display: 'flex', justifyContent: 'flex-end', gap: 8, background: '#FAFAFA' }}>{footer}</div>}
+      </div>
+    </div>
+  );
+}
+
+function PageHead({ title, sub, right }) {
+  return (
+    <div style={{ marginBottom: 20, display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+      <div style={{ flex: 1, minWidth: 240 }}>
+        <h3 style={{ margin: 0, fontSize: 24, fontWeight: 500 }}>{title}</h3>
+        {sub && <p style={{ fontSize: 13, color: '#606266', marginTop: 6, marginBottom: 0, lineHeight: 1.7, maxWidth: 720 }}>{sub}</p>}
+      </div>
+      {right && <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{right}</div>}
+    </div>
+  );
+}
+function Chip({ label, active, onClick }) {
+  return <span role="button" onClick={onClick} style={{ padding: '6px 14px', borderRadius: 16, fontSize: 13, cursor: 'pointer', background: active ? TX : '#fff', color: active ? '#fff' : '#606266', border: '1px solid ' + (active ? TX : '#E3E3E3'), transition: 'all .15s', whiteSpace: 'nowrap' }}>{label}</span>;
+}
+function BackLink({ onClick, children }) {
+  return <button type="button" onClick={onClick} style={{ background: 'none', border: 0, padding: 0, color: '#22736F', cursor: 'pointer', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 14 }}><Icon name="back" size={14} />{children}</button>;
+}
+function NumInput({ value, onChange, placeholder, step, bad, id }) {
+  return <input id={id} className={'inp' + (bad ? ' bad' : '')} type="number" inputMode="decimal" min="0" step={step || 'any'} value={value == null ? '' : value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />;
+}
+function Select({ value, onChange, options, placeholder, id }) {
+  return (
+    <select id={id} className="inp" value={value} onChange={(e) => onChange(e.target.value)}>
+      <option value="">{placeholder || '請選擇'}</option>
+      {options.map((o) => Array.isArray(o) ? <option key={o[0]} value={o[0]}>{o[1]}</option> : <option key={o} value={o}>{o}</option>)}
+    </select>
+  );
+}
+
+/* ============================================================
+   外殼：側欄、頁首
+   ============================================================ */
+function NavBody({ active, onNavigate, onReset, sub, setSub, pending }) {
+  const groups = [
+    { title: '商務合作', items: [
+      { k: 'out:找商務合作', label: '找商務合作', primary: true, pc: TEAL },
+      { k: 'out:行銷 SENSE', label: '行銷 SENSE', bar: '#49BFBB' },
+      { k: 'out:商品 SENSE', label: '商品 SENSE', bar: '#E0912A' },
+      { k: 'out:策略 SENSE', label: '策略 SENSE', bar: '#3F3AA9' },
+      { k: 'out:AI 推薦合作機會', label: 'AI 推薦合作機會', bar: '#9AA0A6' }] },
+    { title: '總會服務', items: [] },
+    { title: '我的', items: [
+      { k: 'pt-inbox', label: '收到的合作機會', icon: 'list', badge: pending || undefined }, { k: 'pt-deals', label: '我的商機', icon: 'doc' },
+      { k: 'pt-profile', label: '服務能力檔案', icon: 'user' }, { k: 'pt-stats', label: '成效與結算', icon: 'chart' },
+      { divider: true, k: 'div-my' },
+      { k: 'out:我的上架', label: '我的上架', icon: 'list' }, { k: 'out:受眾包管理', label: '受眾包管理', icon: 'grid' },
+      { k: 'out:公司資料', label: '公司資料', icon: 'user' },
+      { k: 'out:我的合作', label: '我的合作', icon: 'doc' }, { k: 'out:帳戶與結算', label: '帳戶與結算', icon: 'chart' }] },
+    { title: '資源', items: [
+      { k: 'out:教學與案例', label: '教學與案例', icon: 'box' }, { k: 'out:合規與 DCR 說明', label: '合規與 DCR 說明', icon: 'doc' }] }
+  ];
+  const txItems = [
+    { k: 'tx-home', label: '總覽' }, { k: 'tx-assess', label: '機會點自評' }, { k: 'tx-solutions', label: '解決方案' },
+    { k: 'tx-trial', label: '效益試算' }, { k: 'tx-records', label: '我的評估' }];
+  const primary = (it, on, expanded, collapsible) => (
+    <div key={it.k} role="button" onClick={() => onNavigate(it.k)} style={{
+      margin: '2px 4px 8px', padding: '13px 12px', borderRadius: 8, cursor: 'pointer', background: on ? it.pc : '#fff', border: '1.5px solid ' + it.pc,
+      color: on ? '#fff' : it.pc, fontSize: 15, fontWeight: 600, letterSpacing: '.02em', boxShadow: on ? `0 2px 8px ${it.pc}47` : 'none',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+      {it.label}
+      {collapsible && <Icon name="chev" size={12} style={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform .15s', opacity: .75 }} />}
+    </div>
+  );
+  const item = (it) => {
+    const on = it.k === active;
+    return (
+      <div key={it.k} className="navit" role="button" onClick={() => onNavigate(it.k)} style={{
+        display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', paddingLeft: it.bar ? 10 : 12, margin: '0 4px', borderRadius: 4, fontSize: it.bar ? 13.5 : 14,
+        cursor: 'pointer', background: on ? '#EDFFFF' : 'transparent', color: on ? '#22736F' : '#323232', fontWeight: on ? 500 : 400 }}>
+        {it.bar ? <span style={{ width: 3, height: 15, borderRadius: 2, background: it.bar, flexShrink: 0 }} /> : <Icon name={it.icon} />}
+        <span style={{ flex: 1 }}>{it.label}</span>
+        {it.badge ? <span style={{ background: '#FF4D4F', color: '#fff', fontSize: 11, padding: '0 6px', minWidth: 18, height: 18, borderRadius: 9, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{it.badge}</span> : null}
+      </div>
+    );
+  };
+  const isTx = active.indexOf('tx-') === 0;
+  return (
+    <>
+      <nav style={{ flex: 1, overflowY: 'auto', padding: '12px 8px' }}>
+        {groups.map((g, i) => (
+          <div key={i} style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: '#999', padding: '8px 12px 6px', letterSpacing: '.05em' }}>{g.title}</div>
+            {g.title === '總會服務' ? (
+              <>
+                {primary({ k: 'tx-toggle', label: '找數位轉型', pc: TX }, isTx || sub, sub, true)}
+                {sub && txItems.map((it) => item({ ...it, bar: TX }))}
+                {primary({ k: 'out:財務 SENSE', label: '財務 SENSE', pc: '#B8860B' }, false)}
+                {primary({ k: 'out:公關 SENSE', label: '公關 SENSE', pc: '#C0392B' }, false)}
+              </>
+            ) : g.items.map((it) => it.divider ? <div key={it.k} style={{ borderTop: '1px solid #EBEEF5', margin: '8px 12px' }} /> : it.primary ? primary(it, false) : item(it))}
+          </div>
+        ))}
+      </nav>
+      <div style={{ padding: 12, borderTop: '1px solid #F1F1F1', fontSize: 12, color: '#999', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <Button variant="default" size="sm" icon={<Icon name="reset" size={14} />} onClick={onReset}>重設示範資料</Button>
+        
+      </div>
+    </>
+  );
+}
+
+function Sidebar({ mobile, open, setOpen, active, onNavigate, onReset, pending }) {
+  const [sub, setSub] = useState(true);
+  const nav = (k) => {
+    if (k === 'tx-toggle') { if (active.indexOf('tx-') === 0) setSub((x) => !x); else { setSub(true); onNavigate('tx-home'); } return; }
+    onNavigate(k); if (mobile) setOpen(false);
+  };
+  const brand = (
+    <div onClick={() => nav('tx-home')} style={{ padding: mobile ? '0' : '18px 20px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: mobile ? 'none' : '1px solid #F1F1F1', cursor: 'pointer' }}>
+      <div style={{ width: 32, height: 32, borderRadius: 8, background: TEAL, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'DM Sans', fontWeight: 700, fontSize: 16 }}>S</div>
+      <div>
+        <div style={{ fontFamily: 'DM Sans', fontWeight: 700, fontSize: 17, lineHeight: 1, letterSpacing: '.12em' }}>SENSE</div>
+        {!mobile && <div style={{ fontSize: 10, color: '#999', marginTop: 4 }}>最有 SENSE 的全方位策略幕僚</div>}
+      </div>
+    </div>
+  );
+  const ident = (
+    <div style={{ margin: '12px 12px 0', padding: 14, background: '#fff', border: '1px solid #EBEEF5', borderRadius: 6 }}>
+      <div style={{ fontSize: 14, fontWeight: 600 }}>示範科技 管理員</div>
+      <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+        {['單位管理員', '示範科技｜資訊服務業'].map((x) => <span key={x} style={{ fontSize: 12, color: '#606266', background: '#F5F6F7', border: '1px solid #EBEEF5', borderRadius: 4, padding: '4px 9px', whiteSpace: 'nowrap' }}>{x}</span>)}
+      </div>
+    </div>
+  );
+  if (mobile) {
+    return (
+      <div style={{ flexShrink: 0, background: '#fff', borderBottom: '1px solid #E3E3E3', position: 'relative', zIndex: 50 }}>
+        <div style={{ height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px' }}>
+          {brand}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 12, color: '#606266' }}>示範科技</span>
+            <button type="button" aria-label="展開選單" onClick={() => setOpen(!open)} style={{ width: 36, height: 36, border: '1px solid #E3E3E3', background: '#fff', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Icon name={open ? 'close' : 'menu'} /></button>
+          </div>
+        </div>
+        {open && (
+          <div style={{ position: 'absolute', top: 56, left: 0, right: 0, background: '#fff', borderBottom: '1px solid #E3E3E3', maxHeight: 'calc(100vh - 56px)', overflow: 'auto', display: 'flex', flexDirection: 'column', boxShadow: '0 12px 24px rgba(0,0,0,.12)' }}>
+            {ident}
+            <NavBody active={active} onNavigate={nav} onReset={() => { onReset(); setOpen(false); }} sub={sub} pending={pending} />
+          </div>
+        )}
+      </div>
+    );
+  }
+  return (
+    <aside style={{ width: 232, background: '#fff', borderRight: '1px solid #E3E3E3', display: 'flex', flexDirection: 'column', height: '100vh', flexShrink: 0 }}>
+      {brand}{ident}
+      <NavBody active={active} onNavigate={nav} onReset={onReset} sub={sub} pending={pending} />
+    </aside>
+  );
+}
+
+function Header({ crumbs }) {
+  return (
+    <header style={{ height: 56, background: '#fff', borderBottom: '1px solid #E3E3E3', display: 'flex', alignItems: 'center', padding: '0 24px', gap: 24, flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+        {crumbs.map((b, i) => (
+          <React.Fragment key={i}>
+            {i > 0 && <span style={{ color: '#CACACB' }}>/</span>}
+            <span style={{ fontSize: 13, color: i === crumbs.length - 1 ? '#323232' : '#999', fontWeight: i === crumbs.length - 1 ? 500 : 400, whiteSpace: 'nowrap' }}>{b}</span>
+          </React.Fragment>
+        ))}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ width: 34, height: 34, borderRadius: 8, background: '#EDFFFF', color: '#22736F', border: '1px solid #DAFBFB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, flexShrink: 0 }}>示</div>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 600 }}>示範科技｜資訊服務業</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="#52C41A"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z" /><path d="M7 12.5l3.2 3.2L17 9" stroke="#fff" strokeWidth="2.4" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            <span style={{ fontSize: 12, color: '#52C41A' }}>示範帳號</span>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function OutOfScope({ name, onBack }) {
+  return (
+    <div className="page">
+      <Card style={{ textAlign: 'center', padding: '56px 24px', maxWidth: 560, margin: '40px auto' }}>
+        <div style={{ width: 44, height: 44, borderRadius: 22, background: '#F5F7FA', color: '#999', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}><Icon name="box" /></div>
+        <div style={{ fontSize: 18, fontWeight: 500 }}>{name}</div>
+        <div style={{ fontSize: 14, color: '#606266', marginTop: 8 }}>此功能即將開放</div>
+        <div style={{ fontSize: 13, color: '#999', marginTop: 6, lineHeight: 1.7 }}>目前可使用「找數位轉型」，請從左側選單進入。</div>
+        <div style={{ marginTop: 20 }}><Button onClick={onBack}>前往找數位轉型</Button></div>
+      </Card>
+    </div>
+  );
+}
+
+/* ============================================================
+   聯繫顧問 Modal
+   ============================================================ */
+function ContactModal({ open, onClose, onSubmit, context }) {
+  const [f, setF] = useState({ name: '', phone: '', slot: '' });
+  const [err, setErr] = useState('');
+  useEffect(() => { if (open) { setErr(''); } }, [open]);
+  const submit = () => {
+    if (!f.name.trim() || !f.phone.trim() || !f.slot) { setErr('請填寫聯絡人、電話與方便聯繫的時段。'); return; }
+    onSubmit(f); setF({ name: '', phone: '', slot: '' });
+  };
+  return (
+    <Modal open={open} onClose={onClose} title="請顧問聯繫" footer={<><Button variant="default" onClick={onClose}>取消</Button><Button onClick={submit}>送出</Button></>}>
+      {context && <div style={{ fontSize: 13, color: '#606266', marginBottom: 14, lineHeight: 1.7 }}>{context}</div>}
+      <div style={{ display: 'grid', gap: 14 }}>
+        <div><label className="lbl">聯絡人</label><input className="inp" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="例：王小明" /></div>
+        <div><label className="lbl">電話</label><input className="inp" inputMode="tel" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} placeholder="例：0912-345-678" /></div>
+        <div><label className="lbl">方便聯繫的時段</label>
+          <Select value={f.slot} onChange={(v) => setF({ ...f, slot: v })} options={['平日上午（9:00–12:00）', '平日下午（13:00–18:00）', '時段不限']} /></div>
+        {err && <div style={{ fontSize: 12, color: '#FF4D4F' }}>{err}</div>}
+      </div>
+    </Modal>
+  );
+}
+
+/* ============================================================
+   頁面 1：總覽
+   ============================================================ */
+function StatusTag({ s }) { const x = DM.STATUS[s]; return <Tag color={x.color}>{x.label}</Tag>; }
+
+function HomePage({ records, go, openRecord }) {
+  const last = records[0];
+  const an = last ? analyze(last.answers) : null;
+  const entries = [
+    { icon: 'clipboard', t: '開始機會點自評', d: '回答 17 個問題，約 10–15 分鐘，產生評估報告與導入順序。', b: '開始自評', k: 'tx-assess' },
+    { icon: 'grid', t: '瀏覽解決方案', d: '依部門與類型查看 24 種常見情境，找到與自己相符的做法。', b: '瀏覽方案', k: 'tx-solutions' },
+    { icon: 'calc', t: '效益試算', d: '勾選想評估的項目、調整數字，直接看每年可省下的工時。', b: '開始試算', k: 'tx-trial' }
+  ];
+  return (
+    <div className="page">
+      <PageHead title="找數位轉型" sub="用 AI 與自動化接手重複的人工作業。先評估機會點，再看合適的解決方案。" />
+      <div className="three" style={{ marginBottom: 24 }}>
+        {entries.map((e) => (
+          <Card key={e.k} className="hov" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 8, background: '#E6F4F8', color: TX, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={e.icon} size={20} /></div>
+            <div style={{ fontSize: 16, fontWeight: 500 }}>{e.t}</div>
+            <div style={{ fontSize: 12.5, color: '#606266', lineHeight: 1.75, flex: 1 }}>{e.d}</div>
+            <div><Button variant="secondary" onClick={() => go(e.k)}>{e.b}</Button></div>
+          </Card>
+        ))}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <div style={{ fontSize: 16, fontWeight: 500 }}>我的評估</div>
+        <Button variant="text" size="sm" onClick={() => go('tx-records')}>查看全部 {records.length} 筆</Button>
+      </div>
+      {last ? (
+        <Card className="hov" style={{ cursor: 'pointer' }} onClick={() => openRecord(last.id)}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
+            <span style={{ fontSize: 13, color: '#606266', fontFamily: 'DM Sans' }}>{last.id}</span>
+            <span style={{ fontSize: 12, color: '#999' }}>{last.date}</span>
+            <StatusTag s={last.status} />
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 12 }}>{an.title}</div>
+          <div className="three" style={{ gap: 12 }}>
+            <Mini l="每年可省下" v={fmt(an.total) + ' 小時'} />
+            <Mini l="約等於全職人力" v={fmt(an.fte, 1) + ' 人'} />
+            <Mini l="最值得先做" v={an.top.length ? an.top[0].p.name : '—'} />
+          </div>
+        </Card>
+      ) : <Card style={{ textAlign: 'center', color: '#999' }}>還沒有評估紀錄，先做一次機會點自評。</Card>}
+    </div>
+  );
+}
+function Mini({ l, v }) { return <div style={{ background: '#F7FAFC', borderRadius: 5, padding: '10px 12px', minWidth: 0 }}><div style={{ fontSize: 12, color: '#999' }}>{l}</div><div style={{ fontSize: 15, fontWeight: 500, marginTop: 2, wordBreak: 'break-word' }}>{v}</div></div>; }
+
+/* ============================================================
+   頁面 2：機會點自評（4 步精靈）
+   ============================================================ */
+const STEP_NAMES = ['基本資料', '目前的系統', '工作現況', '預算與換算基準'];
+
+function AssessPage({ A, setA, step, setStep, onGenerate, go }) {
+  const [msg, setMsg] = useState('');
+  const [errIds, setErrIds] = useState([]);
+  const set = (patch) => setA({ ...A, ...patch });
+  const toggleSys = (val) => {
+    let s = A.sys.slice();
+    if (s.indexOf(val) >= 0) s = s.filter((x) => x !== val);
+    else { s.push(val); if (val === 'none') s = ['none']; else s = s.filter((x) => x !== 'none'); }
+    set({ sys: s });
+  };
+  const setOn = (id, on) => set({ on: { ...A.on, [id]: on } });
+  const setV = (key, val) => set({ v: { ...A.v, [key]: val } });
+  const next = () => { setMsg(''); setStep(Math.min(4, step + 1)); window.scrollTo(0, 0); };
+  const prev = () => { setMsg(''); setStep(Math.max(1, step - 1)); };
+  const generate = () => {
+    if (!DM.ITEMS.some((p) => A.on[p.id])) { setMsg('請在「工作現況」至少勾選一項。'); setStep(3); return; }
+    const miss = missingOf(A);
+    setErrIds(miss.map((m) => m.id));
+    if (miss.length) { setMsg('以下勾選的項目還沒填數字，請先補上：' + miss.map((m) => m.text).join('、')); setStep(3); return; }
+    setMsg(''); onGenerate();
+  };
+  return (
+    <div className="page" style={{ maxWidth: 900 }}>
+      <PageHead title="機會點自評" sub="回答 17 個關於貴公司現況的問題，約 10–15 分鐘。完成後會產生評估報告：哪些工作最值得先交給 AI 與自動化、每年可省下多少工時，以及建議的導入順序。"
+        right={<>
+          <Button variant="default" size="sm" onClick={() => { setA(DM.sampleAnswers()); setErrIds([]); setMsg('已載入 100 人資訊服務業的範例數字，可直接產生報告或修改。'); }}>載入範例</Button>
+          <Button variant="default" size="sm" onClick={() => { setA(DM.blankAnswers()); setErrIds([]); setMsg(''); setStep(1); }}>清除重填</Button>
+        </>} />
+      <div className="steps">
+        {STEP_NAMES.map((n, i) => {
+          const on = step === i + 1, done = step > i + 1;
+          return (
+            <div key={n} onClick={() => setStep(i + 1)} style={{ flex: 1, minWidth: 0, cursor: 'pointer', borderBottom: '3px solid ' + (on || done ? TX : '#E3E3E3'), paddingBottom: 8 }}>
+              <div style={{ fontSize: 12, color: on ? TX : '#999', fontFamily: 'DM Sans', fontWeight: 600 }}>STEP {i + 1}</div>
+              <div style={{ fontSize: 13, color: on ? '#323232' : '#606266', fontWeight: on ? 500 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{n}</div>
+            </div>
+          );
+        })}
+      </div>
+      <Card>
+        {step === 1 && (
+          <div style={{ display: 'grid', gap: 18 }}>
+            <div><label className="lbl" htmlFor="q1">Q1　貴公司的產業</label><Select id="q1" value={A.industry} onChange={(v) => set({ industry: v })} options={DM.INDUSTRIES} /></div>
+            <div><label className="lbl" htmlFor="q2">Q2　員工人數</label><NumInput id="q2" step={1} value={A.staff} onChange={(v) => set({ staff: v })} placeholder="例：100" /></div>
+          </div>
+        )}
+        {step === 2 && (
+          <div style={{ display: 'grid', gap: 18 }}>
+            <div>
+              <div className="lbl">Q3　目前有在用的系統<span style={{ color: '#999', fontWeight: 400, marginLeft: 6 }}>可複選</span></div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {DM.SYSTEMS.map(([val, l]) => {
+                  const on = A.sys.indexOf(val) >= 0;
+                  return (
+                    <label key={val} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', border: '1px solid ' + (on ? TEAL : '#E3E3E3'), background: on ? '#EDFFFF' : '#fff', color: on ? '#22736F' : '#323232', borderRadius: 16, fontSize: 13, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={on} onChange={() => toggleSys(val)} style={{ accentColor: TEAL, margin: 0 }} />{l}
+                    </label>
+                  );
+                })}
+              </div>
+              {A.sys.indexOf('other') >= 0 && <div style={{ marginTop: 10 }}><label className="lbl">其他系統名稱（可填多個，每行一個）</label><textarea className="inp" rows={3} value={A.sysOther} onChange={(e) => set({ sysOther: e.target.value })} placeholder={'例：\n自行開發的訂單系統\n人資薪資系統'} /></div>}
+            </div>
+            <div><label className="lbl" htmlFor="q4">Q4　公司資料可以放在雲端嗎？</label><Select id="q4" value={A.cloud} onChange={(v) => set({ cloud: v })} options={DM.CLOUD} /></div>
+            <div><label className="lbl" htmlFor="q5">Q5　客戶資料目前在哪裡？</label><Select id="q5" value={A.scatter} onChange={(v) => set({ scatter: v })} options={DM.SCATTER} /></div>
+          </div>
+        )}
+        {step === 3 && (
+          <div style={{ display: 'grid', gap: 12 }}>
+            <div style={{ fontSize: 13, color: '#606266' }}>勾選貴公司有的情況，再填大概的數字。不確定時用估計值即可。</div>
+            {DM.ITEMS.map((p, i) => {
+              const on = !!A.on[p.id], bad = errIds.indexOf(p.id) >= 0 && on;
+              return (
+                <div key={p.id} id={'pain-' + p.id} style={{ border: '1px solid ' + (bad ? '#FF4D4F' : on ? TEAL : '#EBEEF5'), background: on ? '#FAFFFF' : '#fff', borderRadius: 6, padding: 14 }}>
+                  <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={on} onChange={(e) => setOn(p.id, e.target.checked)} style={{ accentColor: TEAL, width: 16, height: 16, marginTop: 2, flexShrink: 0 }} />
+                    <span><b style={{ fontWeight: 500 }}>Q{6 + i}　{p.title}</b><br /><span style={{ fontSize: 12.5, color: '#606266' }}>{p.desc}</span></span>
+                  </label>
+                  {on && (
+                    <div className="fields" style={{ marginTop: 12, paddingLeft: 26 }}>
+                      {p.fields.filter((f) => !f.trialOnly).map((f) => (
+                        <div key={f.k}><label className="lbl" style={{ fontWeight: 400, color: '#606266' }}>{f.l}</label>
+                          <NumInput bad={bad && !(num(A.v[p.id + '.' + f.k]) > 0)} step={f.s} value={A.v[p.id + '.' + f.k]} onChange={(v) => setV(p.id + '.' + f.k, v)} placeholder={'例：' + f.d} /></div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            <div><label className="lbl" htmlFor="q14">Q14　還有其他想交給 AI 或自動化處理的工作嗎？<span style={{ color: '#999', fontWeight: 400, marginLeft: 6 }}>選填</span></label>
+              <textarea id="q14" className="inp" rows={3} value={A.extra} onChange={(e) => set({ extra: e.target.value })} placeholder="例：每月要人工核對供應商報價、每週要整理會議紀錄" /></div>
+          </div>
+        )}
+        {step === 4 && (
+          <div style={{ display: 'grid', gap: 18 }}>
+            <div className="fields">
+              <div><label className="lbl" htmlFor="q15">Q15　年度預算區間（新台幣）<span style={{ color: '#999', fontWeight: 400, marginLeft: 6 }}>選填</span></label><Select id="q15" value={A.budget || ''} onChange={(v) => set({ budget: v })} options={DM.BUDGETS} /><div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>選填，用於媒合合適方案，不會公開。</div></div>
+              <div><label className="lbl" htmlFor="q16">Q16　期望導入時程<span style={{ color: '#999', fontWeight: 400, marginLeft: 6 }}>選填</span></label><Select id="q16" value={A.timeline || ''} onChange={(v) => set({ timeline: v })} options={DM.WANT_TIMES} /><div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>選填，用於媒合合適方案，不會公開。</div></div>
+            </div>
+            <div>
+              <div className="lbl">Q17　各職能平均每人年薪成本<span style={{ color: '#999', fontWeight: 400, marginLeft: 6 }}>元，含勞健保，選填；未填的職能以「全體員工平均」計算</span></div>
+              <div className="fields3" style={{ marginTop: 8 }}>
+                {DM.ROLES.map(([k, l]) => (
+                  <div key={k}><label className="lbl" style={{ fontWeight: 400, color: '#606266' }}>{l}</label>
+                    <NumInput step={10000} value={A.cost[k]} onChange={(v) => set({ cost: { ...A.cost, [k]: v } })} placeholder="未填" /></div>
+                ))}
+              </div>
+            </div>
+            <details>
+              <summary style={{ cursor: 'pointer', fontSize: 13, color: '#606266' }}>試算採用的假設</summary>
+              <p style={{ fontSize: 12.5, color: '#606266', lineHeight: 1.8, margin: '10px 0 0' }}>每年 240 個工作天、每天 8 小時。各項改善幅度採保守值，已保留人工確認與例外處理的時間：{DM.ITEMS.map((p) => p.name.replace('（OCR）', '') + ' ' + p.cut + '%').join('、')}。</p>
+            </details>
+            <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer', padding: 14, background: '#F7FAFC', borderRadius: 6, fontSize: 13.5, lineHeight: 1.6 }}>
+              <input type="checkbox" checked={A.consent} onChange={(e) => set({ consent: e.target.checked })} style={{ accentColor: TEAL, width: 16, height: 16, marginTop: 3, flexShrink: 0 }} />
+              <span>同意平台以不具名方式，為我尋找合適的解決方案<span style={{ color: '#999', marginLeft: 6 }}>選填</span><br /><span style={{ fontSize: 12, color: '#999' }}>不會提供公司名稱與聯絡資料，有合適的方案時會先通知您，由您決定是否洽談。</span></span>
+            </label>
+          </div>
+        )}
+        {msg && <div role="alert" style={{ marginTop: 16, fontSize: 13, color: /^已載入/.test(msg) ? '#22736F' : '#D4380D', lineHeight: 1.7 }}>{msg}</div>}
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 22, paddingTop: 16, borderTop: '1px solid #F1F3F6', flexWrap: 'wrap' }}>
+          <Button variant="default" onClick={step === 1 ? () => go('tx-home') : prev}>{step === 1 ? '取消' : '上一步'}</Button>
+          {step < 4 ? <Button onClick={next}>下一步</Button> : <Button onClick={generate}>產生評估報告</Button>}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+/* ============================================================
+   評估報告（我的評估詳情）
+   ============================================================ */
+function Stepper({ status, base }) {
+  const idx = DM.STAGES.indexOf(status === 'advisor' ? (base || 'done') : status);
+  return (
+    <div style={{ display: 'flex', gap: 4, overflow: 'hidden' }}>
+      {DM.STAGES.map((s, i) => (
+        <div key={s} style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ height: 4, borderRadius: 2, background: i <= idx ? TX : '#E3E3E3' }} />
+          <div style={{ fontSize: 11.5, marginTop: 6, color: i === idx ? '#323232' : '#999', fontWeight: i === idx ? 500 : 400 }}>{DM.STATUS[s].label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ReportPage({ rec, onBack, onContact, onAgree, onDecline, onRedo }) {
+  const A = rec.answers, an = analyze(A);
+  const box = (title, children, sub) => <Card style={{ marginBottom: 16 }}><div style={{ fontSize: 16, fontWeight: 500 }}>{title}</div>{sub && <div style={{ fontSize: 12.5, color: '#999', marginTop: 4 }}>{sub}</div>}<div style={{ marginTop: 14 }}>{children}</div></Card>;
+  const quad = (t, s, list, bg) => (
+    <div style={{ background: bg, borderRadius: 6, padding: 14, minHeight: 110, minWidth: 0 }}>
+      <div style={{ fontSize: 14, fontWeight: 500 }}>{t}</div><div style={{ fontSize: 12, color: '#606266', marginBottom: 6 }}>{s}</div>
+      {list.length ? <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.8 }}>{list.map((i) => <li key={i.p.id}>{i.p.name}<span style={{ color: '#606266' }}>・{fmt(i.h)} 小時{i.pre ? '・需先整合客戶資料' : ''}</span></li>)}</ul> : <span style={{ fontSize: 12, color: '#999' }}>（無）</span>}
+    </div>
+  );
+  const phase = (n, s, l) => l.length ? (
+    <div key={n} style={{ display: 'flex', gap: 14, padding: '12px 0', borderBottom: '1px solid #F1F3F6' }}>
+      <span style={{ background: '#E6F4F8', color: TX, fontWeight: 600, fontSize: 13, padding: '2px 10px', borderRadius: 4, height: 24, whiteSpace: 'nowrap' }}>{n}</span>
+      <div style={{ minWidth: 0 }}><div style={{ fontSize: 12.5, color: '#606266' }}>{s}</div><ul style={{ margin: '4px 0 0', paddingLeft: 18, fontSize: 13.5, lineHeight: 1.8 }}>{l.map((x) => <li key={x}>{x}</li>)}</ul></div>
+    </div>
+  ) : null;
+  const dataCard = (k, v) => <div key={k} style={{ display: 'flex', gap: 12, padding: '8px 0', borderBottom: '1px solid #F1F3F6', fontSize: 13 }}><span style={{ width: 84, color: '#999', flexShrink: 0 }}>{k}</span><span style={{ flex: 1, minWidth: 0 }}>{v}</span></div>;
+  const topName = an.top.length ? an.top[0].p.name : '';
+  const cloudTxt = (DM.CLOUD.find((c) => c[0] === A.cloud) || [0, '未確認'])[1];
+  return (
+    <div className="page" style={{ maxWidth: 960 }}>
+      <BackLink onClick={onBack}>返回我的評估</BackLink>
+      {rec.demo && <div style={{ background: '#F5F3FF', border: '1px solid #E1DBF5', color: '#6B5B95', fontSize: 12.5, borderRadius: 5, padding: '8px 12px', marginBottom: 14 }}>這是示範資料，用來展示評估紀錄與狀態變化。</div>}
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 6 }}>
+        <span style={{ fontSize: 12, color: TX, fontWeight: 700, letterSpacing: '.1em' }}>評估報告</span>
+        <span style={{ fontSize: 13, color: '#606266', fontFamily: 'DM Sans' }}>{rec.id}</span><span style={{ fontSize: 12, color: '#999' }}>{rec.date}</span>
+        <StatusTag s={rec.status} />
+      </div>
+      <h3 style={{ margin: '0 0 16px', fontSize: 24, fontWeight: 500 }}>{an.title}{rec.scope ? '（評估範圍：' + rec.scope + '）' : ''}</h3>
+
+      <Card style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 13, color: '#606266', marginBottom: 10 }}>目前進度</div>
+        <Stepper status={rec.status} base={rec.base} />
+        {rec.contact && rec.status !== 'advisor' && <div style={{ marginTop: 12, fontSize: 13, color: '#22736F' }}>已請顧問聯繫（聯絡人：{rec.contact.name}，方便時段：{rec.contact.slot}）。</div>}
+        {rec.status === 'advisor' && <div style={{ marginTop: 12, fontSize: 13, color: '#22736F' }}>您已送出聯繫需求，顧問將於 2 個工作天內聯繫{rec.contact ? '（聯絡人：' + rec.contact.name + '，方便時段：' + rec.contact.slot + '）' : ''}。</div>}
+        {rec.status === 'seeking' && <div style={{ marginTop: 12, fontSize: 13, color: '#606266' }}>平台正以不具名方式為您尋找合適的解決方案，有結果會在這裡通知您。</div>}
+        {rec.status === 'scheduled' && <div style={{ marginTop: 12, fontSize: 13, color: '#3F9A14' }}>已安排洽談，顧問會與您確認時間。</div>}
+        {rec.status === 'done' && !A.consent && <div style={{ marginTop: 12, fontSize: 13, color: '#606266' }}>這份評估沒有勾選「尋找合適的解決方案」，只作為您自己的參考。</div>}
+      </Card>
+
+      <Card style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 13, color: '#606266', marginBottom: 10 }}>基本資料</div>
+        <div className="three" style={{ gap: 12, gridTemplateColumns: undefined }}>
+          <Mini l="產業" v={A.industry || '未填'} /><Mini l="員工人數" v={num(A.staff) ? num(A.staff) + ' 人' : '未填'} />
+          {A.budget ? <Mini l="年度預算區間" v={A.budget} /> : null}{A.timeline ? <Mini l="期望導入時程" v={A.timeline} /> : null}
+        </div>
+      </Card>
+
+      {rec.status === 'proposal' && (
+        <Card style={{ marginBottom: 16, borderColor: '#FFE7A1', background: '#FFFDF5' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}><span style={{ fontSize: 16, fontWeight: 500 }}>有方案待您確認</span><Tag color="warning">匿名方案說明</Tag></div>
+          <div style={{ fontSize: 13, color: '#606266', lineHeight: 1.7, marginBottom: 10 }}>有一家服務單位看過您的評估內容（不含公司名稱與聯絡資料），表示可以協助。對方身分會在您同意洽談後才揭露。</div>
+          {dataCard('對應項目', topName || '依評估內容')}
+          {dataCard('產業經驗', (A.industry || '相近產業') + '的導入實績')}
+          {dataCard('服務規模', A.staff ? '經驗涵蓋 ' + DM.sizeBand(num(A.staff)) + ' 的企業' : '經驗涵蓋您的規模')}
+          {dataCard('部署方式', A.cloud === 'no' ? '可地端部署' : A.cloud === 'part' ? '雲端與地端混合' : '雲端部署')}
+          {dataCard('初步做法', rec.proposal ? rec.proposal.approach : '先盤點現有流程與資料，從「' + (topName || '優先項目') + '」開始小範圍上線，穩定後再擴大。')}
+          {dataCard('預計時程', rec.proposal ? rec.proposal.timeline : '1–3 個月')}
+          <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
+            <Button onClick={onAgree}>同意安排洽談</Button><Button variant="default" onClick={onDecline}>暫不需要</Button>
+          </div>
+        </Card>
+      )}
+
+      <div className="kpis" style={{ marginBottom: 16 }}>
+        <Card><div style={{ fontSize: 12, color: '#999' }}>每年可省下</div><div style={{ fontSize: 30, fontFamily: 'DM Sans', fontWeight: 700, color: TX, lineHeight: 1.3 }}>{fmt(an.total)}</div><div style={{ fontSize: 12, color: '#606266' }}>小時</div></Card>
+        <Card><div style={{ fontSize: 12, color: '#999' }}>約等於</div><div style={{ fontSize: 30, fontFamily: 'DM Sans', fontWeight: 700, color: TX, lineHeight: 1.3 }}>{fmt(an.fte, 1)}</div><div style={{ fontSize: 12, color: '#606266' }}>個全職人力（每人每年 1,920 小時）</div></Card>
+        <Card><div style={{ fontSize: 12, color: '#999' }}>換算金額</div><div style={{ fontSize: 30, fontFamily: 'DM Sans', fontWeight: 700, color: TX, lineHeight: 1.3 }}>{an.priced ? fmt(an.money / 10000) + ' 萬' : '—'}</div>
+          <div style={{ fontSize: 12, color: '#606266' }}>{an.priced ? (an.priced < an.items.length ? '元，另有 ' + (an.items.length - an.priced) + ' 項的職能未填年薪成本，未計入' : '元，依各職能年薪成本換算') : '填寫年薪成本後顯示'}</div></Card>
+      </div>
+
+      {box('最值得先做的三件事', an.top.length ? an.top.map((i, k) => (
+        <div key={i.p.id} style={{ display: 'flex', gap: 12, padding: '12px 0', borderBottom: k < an.top.length - 1 ? '1px solid #F1F3F6' : 'none', alignItems: 'flex-start' }}>
+          <span style={{ width: 26, height: 26, borderRadius: 13, background: TX, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, flexShrink: 0 }}>{k + 1}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 500, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>{i.p.name}<Tag color={i.p.group === 'ai' ? 'blue' : 'brand'}>{i.p.group === 'ai' ? 'AI' : '自動化'}</Tag>{i.pre && <Tag color="warning">需先整合客戶資料</Tag>}</div>
+            <div style={{ fontSize: 13, color: '#606266', marginTop: 2 }}>{i.p.why}</div>
+          </div>
+          <div style={{ fontFamily: 'DM Sans', fontWeight: 600, whiteSpace: 'nowrap', fontSize: 13 }}>{fmt(i.h)} 小時／年</div>
+        </div>
+      )) : <div style={{ color: '#999', fontSize: 13 }}>目前填寫的項目效益都較小，建議與顧問討論是否有其他更耗時的工作。</div>, '依每年可省下的工時與導入難度綜合排序：省得多、難度低的優先。所以工時較少但很容易導入的項目，可能排在工時較多但需要較多準備的項目前面。')}
+
+      {box('機會矩陣', <>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, color: '#999', flexShrink: 0, width: 16 }}>
+            <span style={{ writingMode: 'vertical-rl' }}>↑ 容易導入</span><span style={{ writingMode: 'vertical-rl' }}>需要較多準備 ↓</span>
+          </div>
+          <div className="two" style={{ gap: 12, flex: 1 }}>
+            {quad('順手做', '效益較小、容易導入', an.Q.easy, '#F2FBEA')}{quad('優先做', '效益大、容易導入', an.Q.go, '#E6F4F8')}
+            {quad('暫緩', '效益較小、需要較多準備', an.Q.hold, '#F5F6F7')}{quad('規劃後做', '效益大、需要較多準備', an.Q.plan, '#FFF7E0')}
+          </div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#999', marginTop: 8, gap: 8, paddingLeft: 24 }}><span>← 效益較小（每年省不到 300 小時）</span><span style={{ textAlign: 'right' }}>效益較大 →</span></div>
+      </>)}
+
+      {box('建議導入順序', <>
+        {phase('第一階段', an.pre ? '先打好客戶資料基礎，同時啟動最值得先做的三件事' : '先做最值得先做的三件事', an.p1)}
+        {phase('第二階段', '第一階段穩定後擴大', an.p2)}{phase('第三階段', '視需求再評估', an.p3)}
+      </>)}
+
+      {box('導入準備度', (
+        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+          <div style={{ minWidth: 150 }}>
+            <div style={{ fontFamily: 'DM Sans', fontSize: 36, fontWeight: 700, color: TX, lineHeight: 1 }}>{an.score}<span style={{ fontSize: 14, color: '#999', fontWeight: 400 }}>/100</span></div>
+            <div style={{ height: 6, background: '#EBEEF5', borderRadius: 3, marginTop: 10 }}><div style={{ height: 6, borderRadius: 3, background: TX, width: an.score + '%' }} /></div>
+          </div>
+          <div style={{ flex: 1, minWidth: 220 }}><b style={{ fontWeight: 500 }}>{an.level}</b><ul style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: 13, lineHeight: 1.8, color: '#606266' }}>{an.tips.map((t) => <li key={t}>{t}</li>)}</ul>
+            <div style={{ fontSize: 12, color: '#999', marginTop: 8 }}>資料能否上雲：{cloudTxt}</div></div>
+        </div>
+      ))}
+
+      {A.extra && A.extra.trim() && box('您另外提到的需求', <><p style={{ margin: 0, whiteSpace: 'pre-line', fontSize: 13.5 }}>{A.extra.trim()}</p><p style={{ margin: '8px 0 0', fontSize: 12.5, color: '#999' }}>這些項目不在本次自動試算範圍內，顧問陪同評估時會一併檢視。</p></>)}
+
+      {box('下一步', <>
+        <div className="two">
+          <div style={{ background: '#F7FAFC', borderRadius: 6, padding: 14 }}><b style={{ fontWeight: 500 }}>顧問線上陪同評估</b><p style={{ margin: '6px 0 0', fontSize: 13, color: '#606266', lineHeight: 1.7 }}>約 30–60 分鐘。顧問會和您一起檢視這份報告，把估計值問得更精準，確認哪些項目最適合先做。</p></div>
+          <div style={{ background: '#F7FAFC', borderRadius: 6, padding: 14 }}><b style={{ fontWeight: 500 }}>現場診斷</b><p style={{ margin: '6px 0 0', fontSize: 13, color: '#606266', lineHeight: 1.7 }}>顧問到貴公司現場，跟著實際作業量測耗時、盤點系統與資料，產出流程地圖、實測效益與分階段導入藍圖。</p></div>
+        </div>
+        <div className="noprint" style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
+          <Button onClick={onContact} icon={<Icon name="phone" size={15} />}>{rec.status === 'advisor' ? '顧問聯繫中' : rec.contact ? '已請顧問聯繫' : '請顧問聯繫'}</Button>
+          <Button variant="default" onClick={() => window.print()}>列印或存成 PDF</Button>
+          <Button variant="default" onClick={onRedo}>回到問卷修改</Button>
+        </div>
+      </>)}
+
+      <div style={{ fontSize: 12, color: '#999', lineHeight: 1.8 }}>
+        <div>本報告依您填入的數字與保守假設估算，實際效益會依導入範圍與作業流程而不同。AI 處理的項目都保留人工確認，關鍵判斷仍由貴公司同仁決定。</div>
+        <div style={{ marginTop: 6 }}>參考數據：</div>{DM.REFS.map((r) => <div key={r}>{r}</div>)}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   頁面 3：解決方案目錄與詳情
+   ============================================================ */
+function SolutionsPage({ f, setF, onOpen }) {
+  const list = DM.SCENARIOS.filter((s) =>
+    (f.cat === '全部' || s.type === f.cat) && (f.dept === '全部' || s.dept === f.dept) &&
+    (!f.q.trim() || (s.title + s.sol + s.dept + s.type + s.code).toLowerCase().indexOf(f.q.trim().toLowerCase()) >= 0));
+  return (
+    <div className="page">
+      <PageHead title="解決方案" sub="24 種常見的人工作業情境與對應的解決方式。找到與貴公司相符的，點進去看效益怎麼算。" />
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+        {['全部', ...DM.TYPES].map((c) => <Chip key={c} label={c} active={f.cat === c} onClick={() => setF({ ...f, cat: c })} />)}
+      </div>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+        <div style={{ position: 'relative', flex: '1 1 240px', maxWidth: 420 }}>
+          <Icon name="search" size={16} style={{ position: 'absolute', left: 10, top: 9, color: '#999' }} />
+          <input className="inp" style={{ paddingLeft: 32 }} placeholder="搜尋情境或解決方式" aria-label="搜尋" value={f.q} onChange={(e) => setF({ ...f, q: e.target.value })} />
+        </div>
+        <div style={{ flex: '0 1 200px', minWidth: 140 }}>
+          <select className="inp" aria-label="部門" value={f.dept} onChange={(e) => setF({ ...f, dept: e.target.value })}>
+            <option value="全部">全部部門</option>{DM.DEPTS.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
+        </div>
+      </div>
+      <div style={{ fontSize: 12.5, color: '#999', marginBottom: 14 }}>共 <span id="sol-count">{list.length}</span> 個情境</div>
+      {list.length ? (
+        <div className="cards">
+          {list.map((s) => (
+            <Card key={s.code} className="hov" onClick={() => onOpen(s.code)} style={{ display: 'flex', flexDirection: 'column', gap: 10, cursor: 'pointer' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 11 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 8, background: TYPE_TINT[s.type], color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontFamily: 'DM Sans', fontWeight: 600, flexShrink: 0 }}>{s.code.split('-')[0]}</div>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontSize: 15, fontWeight: 500, lineHeight: 1.5 }}>{s.title}</div>
+                  <div style={{ fontSize: 11.5, color: '#999', marginTop: 4 }}>{s.type} · {s.dept}</div>
+                </div>
+              </div>
+              <div style={{ fontSize: 12.5, color: '#606266', lineHeight: 1.75 }}><span style={{ color: '#999' }}>解決方式　</span>{s.sol}</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                <Tag color={TYPE_COLOR[s.type]}>{s.type}</Tag><Tag>{s.dept}</Tag>{s.industry && <Tag color="warning">{s.industry}</Tag>}
+              </div>
+              <div style={{ fontSize: 11.5, color: '#999', lineHeight: 1.7, paddingTop: 10, borderTop: '1px solid #F5F7FA' }}>{s.item ? '有對應的效益試算項目' : '效益納入顧問評估'}</div>
+              <div><Button variant="secondary" onClick={(e) => { e.stopPropagation(); onOpen(s.code); }}>查看詳情</Button></div>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <Card style={{ textAlign: 'center', padding: 40, color: '#999' }}>沒有符合條件的情境<div style={{ marginTop: 12 }}><Button variant="secondary" onClick={() => setF({ cat: '全部', dept: '全部', q: '' })}>清除篩選</Button></div></Card>
+      )}
+    </div>
+  );
+}
+
+function SolutionDetail({ code, onBack, onUse, onContact, go }) {
+  const s = DM.SCENARIOS.find((x) => x.code === code);
+  const it = s.item ? DM.item(s.item) : null;
+  const dv = {}; if (it) it.fields.forEach((fl) => { dv[fl.k] = fl.d; });
+  const h = it ? it.calc(dv, it.cut / 100, DM.BASE) : 0;
+  const sec = (t, children) => <Card style={{ marginBottom: 16 }}><div style={{ fontSize: 15, fontWeight: 500, marginBottom: 10 }}>{t}</div>{children}</Card>;
+  return (
+    <div className="page" style={{ maxWidth: 900 }}>
+      <BackLink onClick={onBack}>返回解決方案</BackLink>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}><Tag color={TYPE_COLOR[s.type]}>{s.type}</Tag><Tag>{s.dept}</Tag>{s.industry && <Tag color="warning">{s.industry}</Tag>}</div>
+      <h3 style={{ margin: '0 0 18px', fontSize: 24, fontWeight: 500 }}>{s.title}</h3>
+      {sec('情境說明', <p style={{ margin: 0, fontSize: 14, lineHeight: 1.8, color: '#606266' }}>{it ? it.desc : s.note}</p>)}
+      {sec('解決方式', <><div style={{ fontWeight: 500, marginBottom: 6 }}>{s.sol}</div><p style={{ margin: 0, fontSize: 14, lineHeight: 1.8, color: '#606266' }}>{it ? it.tdesc : s.sdesc}</p></>)}
+      {sec('效益怎麼算', it ? (
+        <div style={{ display: 'grid', gap: 0 }}>
+          {[['對應試算項目', it.name], ['改善幅度假設', pct(it.cut / 100) + '（' + it.cutLabel + '，保守值，已保留人工確認時間）'],
+            ['參考算式', it.how(dv, it.cut / 100, DM.BASE)], ['參考值下每年約省', fmt(h) + ' 小時（以約 100 人企業的參考數字計算）']].map(([k, v]) => (
+            <div key={k} style={{ display: 'flex', gap: 12, padding: '9px 0', borderBottom: '1px solid #F1F3F6', fontSize: 13.5 }}><span style={{ width: 120, color: '#999', flexShrink: 0 }}>{k}</span><span style={{ flex: 1, minWidth: 0 }}>{v}</span></div>
+          ))}
+          <div style={{ marginTop: 12 }}><Button variant="text" size="sm" onClick={() => go('tx-trial')}>到效益試算調整數字</Button></div>
+        </div>
+      ) : <p style={{ margin: 0, fontSize: 14, lineHeight: 1.8, color: '#606266' }}><b style={{ fontWeight: 500, color: '#323232' }}>納入顧問評估。</b>這個情境目前沒有標準試算公式，顧問會依貴公司的作業量與流程另行估算。</p>)}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <Button onClick={() => onUse(s)}>用我的數字評估</Button>
+        <Button variant="secondary" onClick={() => onContact(s)} icon={<Icon name="phone" size={15} />}>請顧問聯繫</Button>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   頁面 4：效益試算
+   ============================================================ */
+DM.trialDefaults = () => {
+  const t = { on: {}, v: {}, cut: {}, workDays: DM.BASE.workDays, dayHours: DM.BASE.dayHours, cost: { all: '', mkt: '', sales: '', cs: '', admin: '' } };
+  DM.ITEMS.forEach((p) => { t.on[p.id] = true; t.cut[p.id] = p.cut; p.fields.forEach((fl) => { t.v[p.id + '.' + fl.k] = fl.d; }); });
+  return t;
+};
+function TrialPage({ T, setT, go }) {
+  const D = { workDays: num(T.workDays), dayHours: num(T.dayHours) };
+  const fteHours = D.workDays * D.dayHours;
+  const rows = []; let total = 0, money = 0, priced = 0;
+  DM.TRIAL_ORDER.map(DM.item).forEach((p) => {
+    if (!T.on[p.id]) return;
+    const v = {}; p.fields.forEach((fl) => { v[fl.k] = num(T.v[p.id + '.' + fl.k]); });
+    const c = Math.min(num(T.cut[p.id]), 100) / 100;
+    const h = p.calc(v, c, D); total += h;
+    const cost = num(T.cost[p.role]) || num(T.cost.all);
+    if (cost > 0 && fteHours > 0) { money += h / fteHours * cost; priced++; }
+    rows.push({ p, h, how: p.how(v, c, D) + '，約 ' + fmt(fteHours > 0 ? h / fteHours : 0, 1) + ' 個全職人力' });
+  });
+  const upd = (patch) => setT({ ...T, ...patch });
+  const groups = [['auto', '流程自動化'], ['ai', 'AI 工具']];
+  return (
+    <div className="page">
+      <PageHead title="效益試算" sub="勾選您想評估的項目，填入貴公司目前的狀況，即可估算每年可省下的工時與人力。預設值是一家約 100 人企業的參考數字，請依實際情況修改。" />
+      <div className="trial-grid">
+        <Card>
+          <div style={{ fontSize: 16, fontWeight: 500, marginBottom: 12 }}>貴公司現況</div>
+          {groups.map(([g, gl]) => (
+            <div key={g}>
+              <div style={{ fontSize: 12, color: '#999', margin: '14px 0 8px', letterSpacing: '.05em' }}>{gl}</div>
+              {DM.TRIAL_ORDER.map(DM.item).filter((p) => p.group === g).map((p) => {
+                const on = !!T.on[p.id];
+                return (
+                  <div key={p.id} style={{ border: '1px solid ' + (on ? TEAL : '#EBEEF5'), borderRadius: 6, padding: 12, marginBottom: 10, background: on ? '#FAFFFF' : '#fff', opacity: on ? 1 : .75 }}>
+                    <label style={{ display: 'flex', gap: 10, cursor: 'pointer', alignItems: 'flex-start' }}>
+                      <input type="checkbox" checked={on} onChange={(e) => upd({ on: { ...T.on, [p.id]: e.target.checked } })} style={{ accentColor: TEAL, width: 16, height: 16, marginTop: 2, flexShrink: 0 }} />
+                      <span><b style={{ fontWeight: 500 }}>{p.name}</b> <Tag color={g === 'ai' ? 'blue' : 'brand'} style={{ marginLeft: 4 }}>{g === 'ai' ? 'AI' : '自動化'}</Tag><br /><span style={{ fontSize: 12.5, color: '#606266' }}>{p.tdesc}</span></span>
+                    </label>
+                    {on && <div className="fields" style={{ marginTop: 10, paddingLeft: 26 }}>
+                      {p.fields.map((fl) => <div key={fl.k}><label className="lbl" style={{ fontWeight: 400, color: '#606266' }}>{fl.l}</label><NumInput step={fl.s} value={T.v[p.id + '.' + fl.k]} onChange={(val) => upd({ v: { ...T.v, [p.id + '.' + fl.k]: val } })} /></div>)}
+                    </div>}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+          <div style={{ border: '1px solid #EBEEF5', borderRadius: 6, padding: 12, marginTop: 14 }}>
+            <b style={{ fontWeight: 500 }}>換算基準</b><div style={{ fontSize: 12.5, color: '#606266', marginBottom: 10 }}>用來把工時換算成人力與金額</div>
+            <div className="fields">
+              <div><label className="lbl" style={{ fontWeight: 400 }}>每年工作天數</label><NumInput step={1} value={T.workDays} onChange={(v) => upd({ workDays: v })} /></div>
+              <div><label className="lbl" style={{ fontWeight: 400 }}>每天工時（小時）</label><NumInput step={0.5} value={T.dayHours} onChange={(v) => upd({ dayHours: v })} /></div>
+            </div>
+            <div style={{ fontSize: 12.5, color: '#606266', margin: '12px 0 8px' }}>各職能平均每人年薪成本（元，含勞健保，選填）；未填的職能以「全體員工平均」計算</div>
+            <div className="fields3">
+              {DM.ROLES.map(([k, l]) => <div key={k}><label className="lbl" style={{ fontWeight: 400 }}>{l}</label><NumInput step={10000} placeholder="未填" value={T.cost[k]} onChange={(v) => upd({ cost: { ...T.cost, [k]: v } })} /></div>)}
+            </div>
+          </div>
+          <details style={{ marginTop: 12 }}>
+            <summary style={{ cursor: 'pointer', fontSize: 13, color: '#606266' }}>試算採用的改善幅度</summary>
+            <p style={{ fontSize: 12.5, color: '#999', margin: '8px 0' }}>以下為保守假設，已保留人工確認與例外處理的時間。若您有實際經驗值，可直接修改。</p>
+            <div className="fields">{DM.TRIAL_ORDER.map(DM.item).map((p) => <div key={p.id}><label className="lbl" style={{ fontWeight: 400, color: '#606266' }}>{p.name}：{p.cutLabel}（%）</label><NumInput step={5} value={T.cut[p.id]} onChange={(v) => upd({ cut: { ...T.cut, [p.id]: v } })} /></div>)}</div>
+          </details>
+          <div style={{ marginTop: 14 }}><Button variant="default" onClick={() => { setT(DM.trialDefaults()); toast('已恢復預設值'); }}>恢復預設值</Button></div>
+        </Card>
+
+        <Card style={{ position: 'sticky', top: 0 }}>
+          <div style={{ fontSize: 16, fontWeight: 500 }}>每年可省下</div>
+          <div style={{ background: '#F7FAFC', borderRadius: 6, padding: 16, margin: '12px 0' }}>
+            <div style={{ fontSize: 12.5, color: '#606266' }}>已選 {rows.length} 個項目合計</div>
+            <div id="trial-total" style={{ fontFamily: 'DM Sans', fontSize: 34, fontWeight: 700, color: TX, lineHeight: 1.3 }}>{fmt(total)} 小時</div>
+            <div style={{ fontSize: 12.5, color: '#606266' }}>約等於 {fmt(fteHours > 0 ? total / fteHours : 0, 1)} 個全職人力（每人每年 {fmt(fteHours)} 小時）</div>
+            {priced > 0 && <div style={{ fontSize: 12.5, color: '#606266', marginTop: 4 }}>依各職能年薪成本換算，約 {fmt(money)} 元{priced < rows.length ? '（另有 ' + (rows.length - priced) + ' 項的職能未填年薪成本，未計入）' : ''}</div>}
+          </div>
+          {rows.length ? rows.map((r) => (
+            <div key={r.p.id} style={{ padding: '10px 0', borderBottom: '1px solid #F1F3F6' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><span style={{ fontSize: 13.5 }}>{r.p.name}</span><span style={{ fontFamily: 'DM Sans', fontWeight: 600, whiteSpace: 'nowrap' }}>{fmt(r.h)} 小時</span></div>
+              <div style={{ fontSize: 12, color: '#999', marginTop: 2, lineHeight: 1.6 }}>{r.how}</div>
+            </div>
+          )) : <div style={{ color: '#999', fontSize: 13, padding: '16px 0' }}>請在左側勾選至少一個項目。</div>}
+          <div style={{ fontSize: 12, color: '#999', lineHeight: 1.7, marginTop: 12 }}>以上為依您填入的數字與保守假設所做的估算，實際效益會依導入範圍與作業流程而不同。AI 工具的結果都保留人工確認：AI 先處理，關鍵判斷仍由您的同仁決定。</div>
+          <div style={{ fontSize: 12, color: '#999', lineHeight: 1.7, marginTop: 8 }}>參考數據：{DM.REFS.map((r) => <div key={r}>{r}</div>)}</div>
+          <div style={{ marginTop: 14 }}><Button variant="secondary" onClick={() => go('tx-assess')}>做完整的機會點自評</Button></div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   頁面 5：我的評估
+   ============================================================ */
+function RecordsPage({ records, onOpen, go, q, setQ, st, setSt }) {
+  const rows = records.map((r) => ({ r, an: analyze(r.answers) })).filter(({ r, an }) =>
+    (st === '全部' || r.status === st) &&
+    (!q.trim() || (r.id + (r.scope || '') + r.answers.industry + an.title + an.items.map((i) => i.p.name).join('')).toLowerCase().indexOf(q.trim().toLowerCase()) >= 0));
+  return (
+    <div className="page">
+      <PageHead title="我的評估" sub="每次完成機會點自評，報告會存在這裡。點一筆可以看完整報告與目前進度。" right={<Button onClick={() => go('tx-assess')}>新增評估</Button>} />
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+        {['全部', ...Object.keys(DM.STATUS)].map((k) => <Chip key={k} label={k === '全部' ? '全部' : DM.STATUS[k].label} active={st === k} onClick={() => setSt(k)} />)}
+      </div>
+      <div style={{ position: 'relative', maxWidth: 420, marginBottom: 12 }}>
+        <Icon name="search" size={16} style={{ position: 'absolute', left: 10, top: 9, color: '#999' }} />
+        <input className="inp" style={{ paddingLeft: 32 }} aria-label="搜尋評估" placeholder="搜尋編號、產業或解決方式" value={q} onChange={(e) => setQ(e.target.value)} />
+      </div>
+      <div style={{ fontSize: 12, color: '#999', marginBottom: 8 }}>以下評估紀錄為示範資料。</div>
+      <Card padding={0} style={{ overflow: 'hidden' }}>
+        <div className="rrow rhead"><span>編號</span><span>評估範圍</span><span>主要解決方式</span><span>每年可省工時</span><span>建立日期</span><span>狀態</span></div>
+        {rows.length ? rows.map(({ r, an }) => (
+          <div key={r.id} className="rrow rbody" role="button" onClick={() => onOpen(r.id)}>
+            <span style={{ fontFamily: 'DM Sans', color: '#606266', whiteSpace: 'nowrap' }}>{r.id}</span>
+            <span style={{ minWidth: 0 }}>{r.scope || '全公司'}・{r.answers.industry || '未填產業'}{num(r.answers.staff) ? '・' + num(r.answers.staff) + ' 人' : ''}</span>
+            <span style={{ color: '#606266', minWidth: 0 }}>{an.top.length ? an.top.map((i) => i.p.name).slice(0, 2).join('、') : '—'}</span>
+            <span style={{ fontFamily: 'DM Sans', fontWeight: 600 }}>{fmt(an.total)} 小時</span>
+            <span style={{ color: '#999' }}>{r.date}</span>
+            <span><StatusTag s={r.status} /></span>
+          </div>
+        )) : <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>沒有符合條件的評估<div style={{ marginTop: 12 }}><Button variant="secondary" onClick={() => { setQ(''); setSt('全部'); }}>清除篩選</Button></div></div>}
+      </Card>
+      <div style={{ fontSize: 12, color: '#999', marginTop: 10 }}>共 <span id="rec-count">{rows.length}</span> 筆</div>
+    </div>
+  );
+}
+
+/* ============================================================
+   合作夥伴端：資料（與客戶端共用同一份 DM）
+   ============================================================ */
+DM.OSTATUS = {
+  pushed: { label: '待回覆', color: 'warning' }, declined: { label: '已回覆・沒興趣', color: 'default' },
+  confirming: { label: '平台確認客戶中', color: 'blue' }, agreed: { label: '客戶同意，已揭露身分', color: 'success' },
+  negotiating: { label: '洽談中', color: 'brand' }, proposing: { label: '提案中', color: 'brand' },
+  won: { label: '已成交', color: 'success' }, closed: { label: '已結案', color: 'default' }, rejected: { label: '客戶暫不需要', color: 'error' }
+};
+DM.OPP_FLOW = ['confirming', 'agreed', 'negotiating', 'proposing', 'won', 'closed'];
+DM.NEXT_STAGE = { agreed: 'negotiating', negotiating: 'proposing', proposing: 'won', won: 'closed' };
+DM.DECLINE_REASONS = ['不在我們的服務範圍', '規模不符', '國家或地區不在服務範圍', '部署方式不符', '目前沒有人力承接', '其他'];
+DM.TIMELINES = ['1 個月內', '1–3 個月', '3–6 個月', '6 個月以上'];
+DM.COUNTRIES = ['台灣', '新加坡', '馬來西亞', '越南'];
+DM.SIZES = ['50 人以下', '51–200 人', '201–500 人', '501 人以上'];
+DM.DEPLOYS = ['雲端', '地端', '混合'];
+DM.LANGS = ['中文', 'English', 'Bahasa', 'Tiếng Việt'];
+DM.PRICES = ['50 萬以下', '50–200 萬', '200–500 萬', '500 萬以上'];
+DM.DEMO_CLIENTS = [['範例餐飲股份有限公司', '周經理'], ['示範物流股份有限公司', '許經理'], ['範例貿易股份有限公司', '李經理'], ['範例連鎖股份有限公司', '鄭經理']];
+DM.sizeBand = (n) => n <= 50 ? '50 人以下' : n <= 200 ? '51–200 人' : n <= 500 ? '201–500 人' : '501 人以上';
+DM.hoursBand = (h) => { const s = h >= 2000 ? 500 : h >= 500 ? 100 : 50; const lo = Math.max(s, Math.floor(h * 0.8 / s) * s), hi = Math.ceil(h * 1.2 / s) * s; return fmt(lo) + '–' + fmt(hi) + ' 小時'; };
+DM.scoreBand = (x) => { const lo = Math.min(80, Math.floor(x / 20) * 20); return lo + '–' + (lo + 20) + ' 分'; };
+DM.scn = (code) => DM.SCENARIOS.find((s) => s.code === code);
+const todayStr = () => { const d = new Date(), p = (x) => String(x).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); };
+DM.depOf = (txt) => txt.indexOf('地端') >= 0 ? 'no' : txt.indexOf('混合') >= 0 ? 'part' : 'yes';
+DM.levelOf = (x) => x >= 80 ? '基礎完善' : x >= 55 ? '具備基本條件' : '需先打基礎';
+// 推薦理由：依夥伴能力檔案實際比對得出
+DM.matchList = (o, P) => {
+  const r = [], s = DM.scn(o.code);
+  if (P.codes.indexOf(o.code) >= 0) r.push('符合您可服務的情境「' + s.sol + '」');
+  if (P.industries.indexOf(o.industry) >= 0) r.push('產業在您的擅長範圍');
+  if (P.sizes.indexOf(o.size) >= 0) r.push('規模在您的服務範圍');
+  if (P.countries.indexOf(o.country) >= 0) r.push('位於您的服務國家');
+  if (o.dep === 'no' && P.deploy.indexOf('地端') >= 0) r.push('客戶要求地端部署，您提供地端方案');
+  else if (o.dep === 'part' && P.deploy.indexOf('混合') >= 0) r.push('客戶需要混合部署，您提供混合方案');
+  else if (o.dep === 'yes' && P.deploy.indexOf('雲端') >= 0) r.push('客戶可使用雲端，與您的部署方式相符');
+  return r.length ? r : ['依平台媒合條件推送'];
+};
+DM.matchReason = (o, P) => DM.matchList(o, P).join('；');
+DM.matchShort = (o, P) => {
+  const m = [];
+  if (P.codes.indexOf(o.code) >= 0) m.push('服務情境');
+  if (P.industries.indexOf(o.industry) >= 0) m.push('產業');
+  if (P.sizes.indexOf(o.size) >= 0) m.push('規模');
+  if (P.countries.indexOf(o.country) >= 0) m.push('服務國家');
+  return m.length ? '符合您的' + m.join('、') : '依平台媒合條件推送';
+};
+DM.seedOpps = () => {
+  const day = 86400000, now = Date.now();
+  const rv = (company, contact) => ({ company, contact, phone: '02-1234-5678（示範）' });
+  const rp = (code, fee, tl) => ({ interest: true, approach: '先盤點現有流程與資料，從「' + DM.scn(code).sol + '」開始小範圍上線，穩定後再擴大到其他單位。', fee, timeline: tl });
+  const SYS = [['POS／電商平台', '會計系統'], ['ERP', '會計系統'], ['ERP', 'CRM 客戶管理'], ['POS／電商平台', 'ERP'], ['會計系統', '主要靠 Excel']];
+  const BUD = ['50–150 萬', '150–300 萬', '未提供', '300 萬以上', '50 萬以下', '尚未決定'];
+  const WANT = ['3–6 個月', '6–12 個月', '未提供', '3 個月內', '3–6 個月', '尚未決定'];
+  const SC = { '40–60 分': 52, '60–80 分': 70, '80–100 分': 84 };
+  const S = [
+    ['FIN-01', '零售／電商', '51–200 人', '台灣', '每年 700–1,000 小時', '每月單據約 2,000–5,000 張', '60–80 分', '可使用雲端', 'pushed', 3],
+    ['ADM-01', '製造業', '201–500 人', '新加坡', '每年 800–1,200 小時', '約 4–6 人負責重複輸入', '40–60 分', '敏感資料需留在公司內部（混合）', 'pushed', 1],
+    ['CS-01', '服務業', '51–200 人', '台灣', '每年 500–800 小時', '每月詢問約 1,500–2,500 則', '60–80 分', '資料需留在公司內部（地端）', 'pushed', 5],
+    ['ADM-02', '零售／電商', '201–500 人', '新加坡', '每年 500–1,000 小時', '每月簽核單約 600–1,000 張', '60–80 分', '可使用雲端', 'pushed', 6],
+    ['SCM-01', '零售／電商', '51–200 人', '台灣', '每年 300–600 小時', '每月報價文件約 60–100 份', '40–60 分', '可使用雲端', 'pushed', -1],
+    ['ADM-03', '服務業', '51–200 人', '新加坡', '每年 1,000–1,500 小時', '全員每天約 20–40 分鐘找資料', '80–100 分', '可使用雲端', 'pushed', -2],
+    ['SAL-03', '服務業', '51–200 人', '台灣', '每年 300–500 小時', '每月報價與合約約 60–120 份', '40–60 分', '可使用雲端', 'declined', 0, { interest: false, reason: '目前沒有人力承接' }],
+    ['MKT-03', '零售／電商', '51–200 人', '台灣', '每年 200–400 小時', '每月約 6–10 波活動', '40–60 分', '可使用雲端', 'confirming', 0, rp('MKT-03', 'NT$ 40–80 萬', '1–3 個月')],
+    ['FIN-03', '零售／電商', '201–500 人', '新加坡', '每年 500–900 小時', '每月需比對多個銀行與平台帳戶', '60–80 分', '敏感資料需留在公司內部（混合）', 'confirming', 0, rp('FIN-03', 'SGD 25,000–45,000', '1–3 個月')],
+    ['SAL-03', '製造業', '51–200 人', '台灣', '每年 300–600 小時', '每月報價與合約約 80–150 份', '60–80 分', '可使用雲端', 'agreed', 0, rp('SAL-03', 'NT$ 50–90 萬', '3–6 個月'), rv('範例製造股份有限公司', '林經理')],
+    ['ADM-02', '零售／電商', '201–500 人', '台灣', '每年 600–900 小時', '每月簽核單約 600–1,000 張', '60–80 分', '可使用雲端', 'negotiating', 0, rp('ADM-02', 'NT$ 60–100 萬', '1–3 個月'), rv('範例百貨股份有限公司', '張經理')],
+    ['SCM-01', '零售／電商', '51–200 人', '新加坡', '每年 200–400 小時', '每月報價文件約 60–100 份', '40–60 分', '可使用雲端', 'proposing', 0, rp('SCM-01', 'SGD 15,000–30,000', '1 個月內'), rv('示範零售股份有限公司', '譚經理')],
+    ['FIN-01', '零售／電商', '51–200 人', '台灣', '每年 600–900 小時', '每月單據約 2,000–4,000 張', '60–80 分', '可使用雲端', 'won', 0, rp('FIN-01', 'NT$ 40–70 萬', '1–3 個月'), rv('示範生活用品股份有限公司', '黃經理'), 'pending', '2026-10-05'],
+    ['ADM-01', '製造業', '201–500 人', '台灣', '每年 900–1,300 小時', '約 5–7 人負責重複輸入', '60–80 分', '敏感資料需留在公司內部（混合）', 'won', 0, rp('ADM-01', 'NT$ 80–120 萬', '3–6 個月'), rv('範例機電股份有限公司', '吳經理'), 'settled', '2026-08-12'],
+    ['MGT-01', '服務業', '51–200 人', '新加坡', '每年 200–400 小時', '每週彙整報表約 8–12 小時', '60–80 分', '可使用雲端', 'closed', 0, rp('MGT-01', 'SGD 12,000–20,000', '1–3 個月'), rv('範例服務股份有限公司', '林經理')],
+    ['CS-01', '零售／電商', '51–200 人', '台灣', '每年 400–700 小時', '每月詢問約 1,200–2,000 則', '40–60 分', '可使用雲端', 'rejected', 0, rp('CS-01', 'NT$ 30–60 萬', '1–3 個月')]
+  ];
+  return S.map((x, i) => {
+    const [code, industry, size, country, benefit, qty, ready, deploy, stage, d, reply, reveal, settle, wonDate] = x;
+    return { id: 'OPP-2026-' + String(i + 1).padStart(4, '0'), recId: null, code, industry, size, country, qty, benefit, score: SC[ready] + (i % 4) * 2, systems: SYS[i % 5], budget: BUD[i % 6], want: WANT[i % 6], deploy, dep: DM.depOf(deploy),
+      deadline: now + (d || 7) * day - 3600000, stage, reply: reply || null, reveal: reveal || null,
+      settle: settle || null, wonDate: wonDate || null, updated: wonDate || '2026-10-' + String(10 + (i % 12)).padStart(2, '0') };
+  });
+};
+DM.seedProfile = () => ({
+  codes: ['MKT-03', 'SAL-03', 'FIN-01', 'FIN-03', 'SCM-01', 'ADM-01', 'ADM-02', 'ADM-03', 'MGT-01', 'CS-01'],
+  industries: ['零售／電商', '製造業', '服務業'], sizes: ['51–200 人', '201–500 人'], countries: ['台灣', '新加坡'],
+  deploy: ['雲端', '地端', '混合'], langs: ['中文', 'English'], price: '50–200 萬',
+  cases: [
+    { title: '連鎖通路單據自動辨識', industry: '零售／電商', code: 'FIN-01', note: '門市單據自動辨識並寫入會計系統，人工只需核對。' },
+    { title: '製造業多系統資料串接', industry: '製造業', code: 'ADM-01', note: '訂單、庫存與會計系統之間自動同步，取代人工重複輸入。' },
+    { title: '服務業電子簽核上線', industry: '服務業', code: 'ADM-02', note: '紙本簽核改為線上流程，可追蹤各單據卡在哪一關。' }
+  ]
+});
+
+/* ============================================================
+   合作夥伴端：頁面
+   ============================================================ */
+const daysLeft = (o) => Math.ceil((o.deadline - Date.now()) / 86400000);
+const isOverdue = (o) => o.stage === 'pushed' && daysLeft(o) <= 0;
+const inboxGroup = (o) => isOverdue(o) ? '已逾期' : o.stage === 'pushed' ? '待回覆' : o.stage === 'declined' ? '已回覆・沒興趣' : '已回覆・有興趣';
+function OStatusTag({ s }) { const x = DM.OSTATUS[s]; return <Tag color={x.color}>{x.label}</Tag>; }
+function GroupTag({ o }) { const g = inboxGroup(o); return <Tag color={g === '已逾期' ? 'error' : g === '待回覆' ? 'warning' : g === '已回覆・有興趣' ? 'success' : 'default'}>{g}</Tag>; }
+function Deadline({ o }) {
+  if (o.stage !== 'pushed') return <span style={{ color: '#999' }}>已回覆</span>;
+  const d = daysLeft(o);
+  return <span style={{ color: d <= 2 ? '#D4380D' : '#606266', fontWeight: d <= 2 ? 500 : 400 }}>{d > 0 ? '剩 ' + d + ' 天' : '已逾期'}</span>;
+}
+
+function InboxPage({ opps, profile, onOpen, f, setF }) {
+  const list = opps.filter((o) => {
+    const s = DM.scn(o.code);
+    return (f.cat === '全部' || s.type === f.cat) && (f.country === '全部' || o.country === f.country) && (f.status === '全部' || inboxGroup(o) === f.status) &&
+      (!f.q.trim() || (o.id + s.title + s.sol + o.industry + o.country + DM.matchReason(o, profile)).toLowerCase().indexOf(f.q.trim().toLowerCase()) >= 0);
+  });
+  return (
+    <div className="page">
+      <PageHead title="收到的合作機會" sub="平台審核後推送給您公司的匿名合作機會，都是其他企業的需求。客戶身分會在客戶同意洽談後才揭露，請在期限內回覆有無興趣。" />
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+        {['全部', ...DM.TYPES].map((c) => <Chip key={c} label={c} active={f.cat === c} onClick={() => setF({ ...f, cat: c })} />)}
+      </div>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+        <div style={{ position: 'relative', flex: '1 1 240px', maxWidth: 420 }}>
+          <Icon name="search" size={16} style={{ position: 'absolute', left: 10, top: 9, color: '#999' }} />
+          <input className="inp" style={{ paddingLeft: 32 }} aria-label="搜尋機會" placeholder="搜尋編號、情境或產業" value={f.q} onChange={(e) => setF({ ...f, q: e.target.value })} />
+        </div>
+        <div style={{ flex: '0 1 160px', minWidth: 120 }}><select className="inp" aria-label="國家" value={f.country} onChange={(e) => setF({ ...f, country: e.target.value })}><option value="全部">全部國家</option>{['台灣', '新加坡'].map((c) => <option key={c}>{c}</option>)}</select></div>
+        <div style={{ flex: '0 1 190px', minWidth: 140 }}><select className="inp" aria-label="狀態" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}><option value="全部">全部狀態</option>{['待回覆', '已逾期', '已回覆・有興趣', '已回覆・沒興趣'].map((c) => <option key={c}>{c}</option>)}</select></div>
+      </div>
+      <Card padding={0} style={{ overflow: 'hidden' }}>
+        <div className="rrow rhead"><span>編號</span><span>情境與推薦理由</span><span>產業・規模・國家</span><span>預估效益</span><span>回覆期限</span><span>狀態</span></div>
+        {list.length ? list.map((o) => {
+          const s = DM.scn(o.code);
+          return (
+            <div key={o.id} className="rrow rbody orow" role="button" onClick={() => onOpen(o.id)}>
+              <span style={{ fontFamily: 'DM Sans', color: '#606266', whiteSpace: 'nowrap' }}>{o.id}</span>
+              <span style={{ minWidth: 0 }}><b style={{ fontWeight: 500 }}>{s.title}</b><br /><span style={{ fontSize: 12, color: '#999', lineHeight: 1.6 }}>{s.sol}・{DM.matchShort(o, profile)}</span></span>
+              <span style={{ color: '#606266', minWidth: 0 }}>{o.industry}・{o.size}・{o.country}</span>
+              <span style={{ fontWeight: 500 }}>{o.benefit.replace('每年 ', '')}</span>
+              <span><Deadline o={o} /></span>
+              <span><GroupTag o={o} /></span>
+            </div>
+          );
+        }) : <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>沒有符合條件的機會<div style={{ marginTop: 12 }}><Button variant="secondary" onClick={() => setF({ cat: '全部', country: '全部', status: '全部', q: '' })}>清除篩選</Button></div></div>}
+      </Card>
+      <div style={{ fontSize: 12, color: '#999', marginTop: 10 }}>共 <span id="opp-count">{list.length}</span> 筆　以下機會皆為示範資料。</div>
+    </div>
+  );
+}
+
+function OppStepper({ stage }) {
+  const idx = DM.OPP_FLOW.indexOf(stage);
+  const steps = [['replied', '已回覆有興趣'], ...DM.OPP_FLOW.map((k) => [k, DM.OSTATUS[k].label])];
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+      {steps.map(([k, l], i) => {
+        const on = i <= idx + 1 && stage !== 'rejected', cur = i === idx + 1;
+        return <span key={k} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 12, border: '1px solid ' + (on ? TX : '#E3E3E3'), background: cur ? TX : on ? '#E6F4F8' : '#fff', color: cur ? '#fff' : on ? TX : '#999', fontWeight: cur ? 500 : 400 }}>{l}</span>;
+      })}
+    </div>
+  );
+}
+
+function OppDetail({ o, profile, back, onBack, onReply, onAdvance }) {
+  const s = DM.scn(o.code);
+  const [mode, setMode] = useState(''); const [f, setF] = useState({ approach: '', fee: '', timeline: '', reason: '' }); const [err, setErr] = useState(''); const [confirmClose, setConfirmClose] = useState(false);
+  const row = (k, v) => <div key={k} style={{ display: 'flex', gap: 12, padding: '9px 0', borderBottom: '1px solid #F1F3F6', fontSize: 13.5 }}><span style={{ width: 96, color: '#999', flexShrink: 0 }}>{k}</span><span style={{ flex: 1, minWidth: 0 }}>{v}</span></div>;
+  const submit = () => {
+    if (mode === 'yes') {
+      if (!f.approach.trim() || !f.fee.trim() || !f.timeline) { setErr('請填寫初步做法、預估費用範圍與預計時程。'); return; }
+      onReply({ interest: true, approach: f.approach.trim(), fee: f.fee.trim(), timeline: f.timeline });
+    } else if (mode === 'no') {
+      if (!f.reason) { setErr('請選擇沒有興趣的原因。'); return; }
+      onReply({ interest: false, reason: f.reason });
+    } else setErr('請先選擇有興趣或沒興趣。');
+  };
+  const overdue = isOverdue(o);
+  const replied = o.stage !== 'pushed';
+  const next = DM.NEXT_STAGE[o.stage];
+  return (
+    <div className="page" style={{ maxWidth: 900 }}>
+      <BackLink onClick={onBack}>{back === 'deals' ? '返回我的商機' : back === 'stats' ? '返回成效與結算' : '返回收到的合作機會'}</BackLink>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
+        <span style={{ fontSize: 13, color: '#606266', fontFamily: 'DM Sans' }}>{o.id}</span><Tag color={TYPE_COLOR[s.type]}>{s.type}</Tag><Tag>{s.dept}</Tag>
+        {replied ? <OStatusTag s={o.stage} /> : overdue ? <Tag color="error">已逾期</Tag> : <Tag color="warning">待回覆・<Deadline o={o} /></Tag>}
+      </div>
+      <h3 style={{ margin: '0 0 18px', fontSize: 24, fontWeight: 500 }}>{s.title}</h3>
+
+      <Card style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 6 }}>匿名機會卡</div>
+        {row('解決方式', s.sol)}{row('產業', o.industry)}{row('規模', o.size)}{row('國家', o.country)}
+        {row('需求', s.title + (o.qty ? '，' + o.qty : ''))}{row('預估效益', o.benefit)}{row('客戶預算', o.budget || '未提供')}{row('期望時程', o.want || '未提供')}{row('現有系統類型', o.systems.join('、'))}{row('導入準備度', o.score + '／100（' + DM.levelOf(o.score) + '）')}{row('部署限制', o.deploy)}
+        <div style={{ fontSize: 12, color: '#999', marginTop: 10 }}>準備度依客戶現有系統、客戶資料集中程度與資料能否上雲評分。為保護客戶，卡片不含公司名稱、聯絡人、確切人數與城市，數字一律以區間呈現。</div>
+      </Card>
+      <Card style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}><span style={{ fontSize: 15, fontWeight: 500 }}>推薦理由</span><Tag color="brand">平台推薦</Tag></div>
+        <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, lineHeight: 1.9, color: '#606266' }}>{DM.matchList(o, profile).map((x) => <li key={x}>{x}</li>)}</ul>
+      </Card>
+
+      {overdue && <Card style={{ marginBottom: 16, borderColor: '#FDE2E2', background: '#FFFAFA' }}><div style={{ fontSize: 15, fontWeight: 500, color: '#D4380D' }}>已逾期，無法回覆</div><div style={{ fontSize: 13, color: '#606266', marginTop: 6, lineHeight: 1.7 }}>這筆機會已超過回覆期限，平台會改推給其他合適的服務單位。</div></Card>}
+      {!replied && !overdue && (
+        <Card style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 12 }}>回覆</div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+            {[['yes', '有興趣'], ['no', '沒興趣']].map(([k, l]) => (
+              <label key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 16px', border: '1px solid ' + (mode === k ? TEAL : '#E3E3E3'), background: mode === k ? '#EDFFFF' : '#fff', borderRadius: 4, cursor: 'pointer', fontSize: 14 }}>
+                <input type="radio" name="reply-mode" checked={mode === k} onChange={() => { setMode(k); setErr(''); }} style={{ accentColor: TEAL, margin: 0 }} />{l}
+              </label>
+            ))}
+          </div>
+          {mode === 'yes' && (
+            <div style={{ display: 'grid', gap: 14 }}>
+              <div><label className="lbl">初步做法<span style={{ color: '#FF4D4F' }}> *</span></label><textarea className="inp" rows={4} value={f.approach} onChange={(e) => setF({ ...f, approach: e.target.value })} placeholder="例：先盤點現有單據格式，從單一門市試行，再擴大到全部門市" /></div>
+              <div className="fields">
+                <div><label className="lbl">預估費用範圍<span style={{ color: '#FF4D4F' }}> *</span></label><input className="inp" value={f.fee} onChange={(e) => setF({ ...f, fee: e.target.value })} placeholder="例：NT$ 40–80 萬" /></div>
+                <div><label className="lbl">預計時程<span style={{ color: '#FF4D4F' }}> *</span></label><Select value={f.timeline} onChange={(v) => setF({ ...f, timeline: v })} options={DM.TIMELINES} /></div>
+              </div>
+            </div>
+          )}
+          {mode === 'no' && <div><label className="lbl">原因<span style={{ color: '#FF4D4F' }}> *</span></label><Select value={f.reason} onChange={(v) => setF({ ...f, reason: v })} options={DM.DECLINE_REASONS} /></div>}
+          {err && <div role="alert" style={{ fontSize: 12.5, color: '#D4380D', marginTop: 12 }}>{err}</div>}
+          <div style={{ marginTop: 16 }}><Button onClick={submit}>送出回覆</Button></div>
+        </Card>
+      )}
+
+      {replied && o.reply && (
+        <Card style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 6 }}>我的回覆</div>
+          {o.reply.interest ? <>{row('意向', '有興趣')}{row('初步做法', o.reply.approach)}{row('預估費用', o.reply.fee)}{row('預計時程', o.reply.timeline)}</> : <>{row('意向', '沒興趣')}{row('原因', o.reply.reason)}</>}
+        </Card>
+      )}
+
+      {replied && o.stage !== 'declined' && (
+        <Card style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 12 }}>商機進度</div>
+          {o.stage === 'rejected' ? <div style={{ fontSize: 13.5, color: '#D4380D', lineHeight: 1.8 }}>客戶暫不需要，這筆商機不會繼續。感謝您的回覆。</div> : <OppStepper stage={o.stage} />}
+          {o.stage === 'confirming' && <div style={{ fontSize: 13, color: '#606266', marginTop: 12, lineHeight: 1.7 }}>平台正在向客戶確認需求，客戶同意洽談後，會在這裡顯示客戶資訊。</div>}
+          {o.reveal && (
+            <div style={{ marginTop: 14, background: '#F2FBEA', border: '1px solid #D9F4C0', borderRadius: 6, padding: 14 }}>
+              <div style={{ fontWeight: 500, marginBottom: 6 }}>客戶已同意揭露身分</div>
+              {row('客戶公司', o.reveal.company)}{row('聯絡人', o.reveal.contact)}{row('電話', o.reveal.phone)}
+            </div>
+          )}
+          {o.stage === 'won' && <div style={{ fontSize: 13, color: '#606266', marginTop: 12 }}>結算狀態：{o.settle === 'settled' ? '已結算' : '待結算'}</div>}
+          {(next || ['agreed', 'negotiating', 'proposing', 'won'].indexOf(o.stage) >= 0) && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
+              {next && <Button onClick={() => onAdvance(next)}>更新為「{DM.OSTATUS[next].label}」</Button>}
+              {o.stage !== 'won' && !confirmClose && <Button variant="default" onClick={() => setConfirmClose(true)}>結束此商機</Button>}
+            </div>
+          )}
+          {confirmClose && (
+            <div style={{ marginTop: 14, background: '#FFF7E0', border: '1px solid #FFE7A1', borderRadius: 6, padding: 14 }}>
+              <div style={{ fontSize: 13.5, lineHeight: 1.7 }}>確定要結束這筆商機嗎？結束後無法再更新進度。</div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}><Button danger onClick={() => { setConfirmClose(false); onAdvance('closed'); }}>確定結束</Button><Button variant="default" onClick={() => setConfirmClose(false)}>取消</Button></div>
+            </div>
+          )}
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function DealsPage({ opps, onOpen }) {
+  const [st, setSt] = useState('全部'); const [q, setQ] = useState('');
+  const deals = opps.filter((o) => o.stage !== 'pushed' && o.stage !== 'declined');
+  const list = deals.filter((o) => (st === '全部' || o.stage === st) && (!q.trim() || (o.id + DM.scn(o.code).title + (o.reveal ? o.reveal.company : '')).toLowerCase().indexOf(q.trim().toLowerCase()) >= 0));
+  const stages = ['confirming', 'agreed', 'negotiating', 'proposing', 'won', 'closed', 'rejected'];
+  return (
+    <div className="page">
+      <PageHead title="我的商機" sub="您回覆有興趣的機會與目前進度。客戶同意後會顯示客戶資訊，之後的階段由您更新。" />
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+        {['全部', ...stages].map((k) => <Chip key={k} label={k === '全部' ? '全部' : DM.OSTATUS[k].label} active={st === k} onClick={() => setSt(k)} />)}
+      </div>
+      <div style={{ position: 'relative', maxWidth: 420, marginBottom: 12 }}>
+        <Icon name="search" size={16} style={{ position: 'absolute', left: 10, top: 9, color: '#999' }} />
+        <input className="inp" style={{ paddingLeft: 32 }} aria-label="搜尋商機" placeholder="搜尋編號、情境或客戶" value={q} onChange={(e) => setQ(e.target.value)} />
+      </div>
+      <Card padding={0} style={{ overflow: 'hidden' }}>
+        <div className="rrow rhead"><span>編號</span><span>情境</span><span>客戶</span><span>預估效益</span><span>更新日期</span><span>進度</span></div>
+        {list.length ? list.map((o) => (
+          <div key={o.id} className="rrow rbody orow" role="button" onClick={() => onOpen(o.id)}>
+            <span style={{ fontFamily: 'DM Sans', color: '#606266', whiteSpace: 'nowrap' }}>{o.id}</span>
+            <span style={{ minWidth: 0 }}><b style={{ fontWeight: 500 }}>{DM.scn(o.code).title}</b><br /><span style={{ fontSize: 12, color: '#999' }}>{DM.scn(o.code).sol}</span></span>
+            <span style={{ color: o.reveal ? '#323232' : '#999', minWidth: 0 }}>{o.reveal ? o.reveal.company : '尚未揭露'}</span>
+            <span style={{ fontWeight: 500 }}>{o.benefit.replace('每年 ', '')}</span>
+            <span style={{ color: '#999' }}>{o.updated}</span>
+            <span><OStatusTag s={o.stage} /></span>
+          </div>
+        )) : <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>沒有符合條件的商機<div style={{ marginTop: 12 }}><Button variant="secondary" onClick={() => { setSt('全部'); setQ(''); }}>清除篩選</Button></div></div>}
+      </Card>
+    </div>
+  );
+}
+
+function CheckGroup({ options, value, onChange }) {
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+      {options.map((v) => {
+        const on = value.indexOf(v) >= 0;
+        return (
+          <label key={v} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', border: '1px solid ' + (on ? TEAL : '#E3E3E3'), background: on ? '#EDFFFF' : '#fff', color: on ? '#22736F' : '#323232', borderRadius: 16, fontSize: 13, cursor: 'pointer' }}>
+            <input type="checkbox" checked={on} onChange={() => onChange(on ? value.filter((x) => x !== v) : [...value, v])} style={{ accentColor: TEAL, margin: 0 }} />{v}
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+function ProfilePage({ profile, setProfile }) {
+  const [P, setP] = useState(profile); const [nc, setNc] = useState({ title: '', industry: '', code: '', note: '' }); const [adding, setAdding] = useState(false); const [err, setErr] = useState('');
+  const sec = (t, children, sub) => <Card style={{ marginBottom: 16 }}><div style={{ fontSize: 15, fontWeight: 500 }}>{t}</div>{sub && <div style={{ fontSize: 12.5, color: '#999', marginTop: 4 }}>{sub}</div>}<div style={{ marginTop: 12 }}>{children}</div></Card>;
+  const addCase = () => {
+    if (!nc.title.trim() || !nc.industry || !nc.code) { setErr('請填寫案例名稱、產業與對應情境。'); return; }
+    setP({ ...P, cases: [...P.cases, { ...nc, title: nc.title.trim(), note: nc.note.trim() }] }); setNc({ title: '', industry: '', code: '', note: '' }); setAdding(false); setErr(''); toast('已加入案例，記得按「儲存」');
+  };
+  return (
+    <div className="page" style={{ maxWidth: 960 }}>
+      <PageHead title="服務能力檔案" sub="平台依這些資料推薦機會，資料越完整越精準。" right={<><Button variant="default" onClick={() => { setP(profile); toast('已還原為上次儲存的內容'); }}>還原</Button><Button onClick={() => { setProfile(P); toast('能力檔案已儲存'); }}>儲存</Button></>} />
+      {sec('可服務的情境', <>
+        {DM.DEPTS.map((d) => { const ls = DM.SCENARIOS.filter((s) => s.dept === d); return (
+          <div key={d} style={{ marginBottom: 12 }}><div style={{ fontSize: 12, color: '#999', marginBottom: 6 }}>{d}</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>{ls.map((s) => { const on = P.codes.indexOf(s.code) >= 0; return (
+              <label key={s.code} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', border: '1px solid ' + (on ? TEAL : '#E3E3E3'), background: on ? '#EDFFFF' : '#fff', borderRadius: 16, fontSize: 13, cursor: 'pointer' }}>
+                <input type="checkbox" checked={on} onChange={() => setP({ ...P, codes: on ? P.codes.filter((x) => x !== s.code) : [...P.codes, s.code] })} style={{ accentColor: TEAL, margin: 0 }} />{s.sol}
+              </label>); })}</div></div>); })}
+      </>, '已勾選 ' + P.codes.length + ' 個情境，平台會依這些情境推薦機會')}
+      <div className="two">
+        {sec('擅長產業', <CheckGroup options={DM.INDUSTRIES} value={P.industries} onChange={(v) => setP({ ...P, industries: v })} />)}
+        {sec('服務規模', <CheckGroup options={DM.SIZES} value={P.sizes} onChange={(v) => setP({ ...P, sizes: v })} />)}
+        {sec('服務國家', <CheckGroup options={DM.COUNTRIES} value={P.countries} onChange={(v) => setP({ ...P, countries: v })} />)}
+        {sec('部署方式', <CheckGroup options={DM.DEPLOYS} value={P.deploy} onChange={(v) => setP({ ...P, deploy: v })} />)}
+        {sec('服務語言', <CheckGroup options={DM.LANGS} value={P.langs} onChange={(v) => setP({ ...P, langs: v })} />)}
+        {sec('價格帶', <Select value={P.price} onChange={(v) => setP({ ...P, price: v })} options={DM.PRICES} />, '單案常見的費用範圍')}
+      </div>
+      {sec('案例', <>
+        {P.cases.length ? P.cases.map((c, i) => (
+          <div key={i} style={{ display: 'flex', gap: 12, padding: '10px 0', borderBottom: '1px solid #F1F3F6', alignItems: 'flex-start' }}>
+            <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontWeight: 500, fontSize: 14 }}>{c.title}</div><div style={{ fontSize: 12, color: '#999', margin: '2px 0' }}>{c.industry}・{DM.scn(c.code).sol}</div><div style={{ fontSize: 13, color: '#606266', lineHeight: 1.7 }}>{c.note}</div></div>
+            <Button variant="text" size="sm" onClick={() => setP({ ...P, cases: P.cases.filter((_, j) => j !== i) })}>移除</Button>
+          </div>
+        )) : <div style={{ color: '#999', fontSize: 13 }}>還沒有案例。</div>}
+        {adding ? (
+          <div style={{ marginTop: 14, padding: 14, background: '#F7FAFC', borderRadius: 6, display: 'grid', gap: 12 }}>
+            <div><label className="lbl">案例名稱</label><input className="inp" value={nc.title} onChange={(e) => setNc({ ...nc, title: e.target.value })} placeholder="例：連鎖通路單據自動辨識" /></div>
+            <div className="fields">
+              <div><label className="lbl">產業</label><Select value={nc.industry} onChange={(v) => setNc({ ...nc, industry: v })} options={DM.INDUSTRIES} /></div>
+              <div><label className="lbl">對應情境</label><Select value={nc.code} onChange={(v) => setNc({ ...nc, code: v })} options={DM.SCENARIOS.map((s) => [s.code, s.sol])} /></div>
+            </div>
+            <div><label className="lbl">說明</label><textarea className="inp" rows={3} value={nc.note} onChange={(e) => setNc({ ...nc, note: e.target.value })} placeholder="做了什麼、結果如何" /></div>
+            {err && <div style={{ fontSize: 12.5, color: '#D4380D' }}>{err}</div>}
+            <div style={{ display: 'flex', gap: 8 }}><Button onClick={addCase}>加入案例</Button><Button variant="default" onClick={() => { setAdding(false); setErr(''); }}>取消</Button></div>
+          </div>
+        ) : <div style={{ marginTop: 14 }}><Button variant="secondary" onClick={() => setAdding(true)}>新增案例</Button></div>}
+      </>)}
+    </div>
+  );
+}
+
+function StatsPage({ opps, onOpen }) {
+  const recv = opps.length, replied = opps.filter((o) => o.stage !== 'pushed').length;
+  const interested = opps.filter((o) => ['pushed', 'declined'].indexOf(o.stage) < 0).length;
+  const won = opps.filter((o) => o.stage === 'won' || o.settle);
+  const k = (l, v, sub) => <Card><div style={{ fontSize: 12, color: '#999' }}>{l}</div><div style={{ fontSize: 30, fontFamily: 'DM Sans', fontWeight: 700, color: TX, lineHeight: 1.3 }}>{v}</div>{sub && <div style={{ fontSize: 12, color: '#606266' }}>{sub}</div>}</Card>;
+  return (
+    <div className="page">
+      <PageHead title="成效與結算" sub="收到的機會、回覆情況與成交案的結算進度。" />
+      <div className="cards" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(200px,100%),1fr))', marginBottom: 24 }}>
+        {k('收到機會數', recv, '累計')}{k('回覆率', recv ? fmt(replied / recv * 100) + '%' : '—', replied + ' / ' + recv + ' 筆已回覆')}{k('有興趣數', interested)}{k('成交數', won.length)}
+      </div>
+      <div style={{ fontSize: 16, fontWeight: 500, marginBottom: 10 }}>結算列表</div>
+      <Card padding={0} style={{ overflow: 'hidden' }}>
+        <div className="rrow rhead"><span>編號</span><span>情境</span><span>客戶</span><span>預估效益</span><span>成交日期</span><span>結算狀態</span></div>
+        {won.length ? won.map((o) => (
+          <div key={o.id} className="rrow rbody orow" role="button" onClick={() => onOpen(o.id)}>
+            <span style={{ fontFamily: 'DM Sans', color: '#606266', whiteSpace: 'nowrap' }}>{o.id}</span>
+            <span style={{ minWidth: 0 }}><b style={{ fontWeight: 500 }}>{DM.scn(o.code).title}</b></span>
+            <span style={{ minWidth: 0 }}>{o.reveal ? o.reveal.company : '—'}</span>
+            <span style={{ fontWeight: 500 }}>{o.benefit.replace('每年 ', '')}</span>
+            <span style={{ color: '#999' }}>{o.wonDate || '—'}</span>
+            <span><Tag color={o.settle === 'settled' ? 'success' : 'warning'}>{o.settle === 'settled' ? '已結算' : '待結算'}</Tag></span>
+          </div>
+        )) : <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>還沒有成交案</div>}
+      </Card>
+    </div>
+  );
+}
+
+/* ============================================================
+   App
+   ============================================================ */
+const STORE_KEY = 'tx-proto-v2';
+function loadStore() {
+  try { const s = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); if (s && s.records && s.draft && s.trial && s.opps && s.profile) return s; } catch (e) {}
+  return { records: DM.demoRecords(), draft: DM.blankAnswers(), trial: DM.trialDefaults(), opps: DM.seedOpps(), profile: DM.seedProfile() };
+}
+function useMobile() {
+  const [m, setM] = useState(() => window.matchMedia('(max-width: 899px)').matches);
+  useEffect(() => { const mq = window.matchMedia('(max-width: 899px)'); const h = () => setM(mq.matches); mq.addEventListener('change', h); return () => mq.removeEventListener('change', h); }, []);
+  return m;
+}
+
+function App() {
+  const init = useMemo(loadStore, []);
+  const [records, setRecords] = useState(init.records);
+  const [draft, setDraft] = useState(init.draft);
+  const [trial, setTrial] = useState(init.trial);
+  const [opps, setOpps] = useState(init.opps);
+  const [profile, setProfile] = useState(init.profile);
+  const [demoOpen, setDemoOpen] = useState(false);
+  const [oppId, setOppId] = useState(null);
+  const [oppFrom, setOppFrom] = useState('inbox');
+  const [of, setOf] = useState({ cat: '全部', country: '全部', status: '全部', q: '' });
+  const [nav, setNav] = useState('tx-home');
+  const [recId, setRecId] = useState(null);
+  const [solCode, setSolCode] = useState(null);
+  const [step, setStep] = useState(1);
+  const [sf, setSf] = useState({ cat: '全部', dept: '全部', q: '' });
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [rq, setRq] = useState(''); const [rst, setRst] = useState('全部');
+  const [contact, setContact] = useState(null); // { recId } 或 { sol }
+  const mobile = useMobile();
+  const scroller = useRef(null);
+
+  useEffect(() => { try { localStorage.setItem(STORE_KEY, JSON.stringify({ records, draft, trial, opps, profile })); } catch (e) {} }, [records, draft, trial, opps, profile]);
+  useEffect(() => { if (scroller.current) scroller.current.scrollTop = 0; window.scrollTo(0, 0); }, [nav, recId, solCode, oppId]);
+
+  const go = (k) => { setNav(k); setRecId(null); setSolCode(null); setOppId(null); setMenuOpen(false); };
+  const openOpp = (id, from) => { setNav(from === 'deals' ? 'pt-deals' : from === 'stats' ? 'pt-stats' : 'pt-inbox'); setOppFrom(from); setOppId(id); };
+  const openRecord = (id) => { setNav('tx-records'); setRecId(id); setSolCode(null); };
+  const patchRec = (id, patch) => setRecords((rs) => rs.map((r) => r.id === id ? { ...r, ...patch } : r));
+  const rec = recId ? records.find((r) => r.id === recId) : null;
+  const patchOpp = (id, patch) => setOpps((os) => os.map((o) => o.id === id ? { ...o, ...patch, updated: todayStr() } : o));
+  const curOpp = oppId ? opps.find((o) => o.id === oppId) : null;
+  const partnerReply = (o, reply) => {
+    patchOpp(o.id, { stage: reply.interest ? 'confirming' : 'declined', reply, repliedAt: Date.now() });
+    toast(reply.interest ? '已送出回覆，平台會向客戶確認' : '已記錄為沒興趣');
+  };
+  const partnerAdvance = (o, stage) => {
+    patchOpp(o.id, stage === 'won' ? { stage, settle: 'pending', wonDate: todayStr() } : { stage });
+    toast('商機進度已更新為「' + DM.OSTATUS[stage].label + '」');
+  };
+
+  const generate = () => {
+    const n = records.reduce((m, r) => Math.max(m, parseInt(r.id.slice(-3), 10) || 0), 0) + 1;
+    const d = new Date(), pad = (x) => String(x).padStart(2, '0');
+    const r = { id: 'EV-2026-' + String(n).padStart(3, '0'), date: d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()),
+      status: draft.consent ? 'seeking' : 'done', scope: '全公司', base: null, demo: false, answers: JSON.parse(JSON.stringify(draft)) };
+    setRecords([r, ...records]);
+    openRecord(r.id);
+    toast('評估報告已產生，已存入「我的評估」');
+  };
+  const useMyNumbers = (s) => {
+    const a = JSON.parse(JSON.stringify(draft));
+    if (s.item) { a.on[s.item] = true; toast('已勾選對應題目，請填入您的數字'); }
+    else {
+      const line = '想評估：' + s.title + '（' + s.sol + '）';
+      if ((a.extra || '').indexOf(line) < 0) a.extra = (a.extra ? a.extra + '\n' : '') + line;
+      toast('已帶入 Q14，顧問會在陪同評估時一併檢視');
+    }
+    setDraft(a); setStep(s.item ? 3 : 3); go('tx-assess');
+  };
+  const redo = (r) => { setDraft(JSON.parse(JSON.stringify(r.answers))); setStep(1); go('tx-assess'); toast('已帶入這份評估的作答，可修改後重新產生'); };
+  const submitContact = (info) => {
+    if (contact && contact.recId) {
+      const r = records.find((x) => x.id === contact.recId);
+      patchRec(r.id, { status: 'advisor', base: r.status === 'advisor' ? r.base : r.status, contact: info });
+    }
+    setContact(null);
+    toast('已送出，顧問將於 2 個工作天內聯繫您');
+  };
+  const simReply = () => {
+    const r = records.find((x) => x.status === 'seeking' || x.status === 'advisor');
+    if (!r) { toast('目前沒有「尋找合適方案中」或「顧問聯繫中」的評估，請先在自評勾選同意媒合'); return; }
+    const an = analyze(r.answers), top = an.top[0] || an.items[0], w = r.answers.timeline;
+    patchRec(r.id, { status: 'proposal', proposal: { approach: '先盤點現有流程與資料，從「' + top.p.name + '」開始小範圍上線，穩定後再擴大到其他單位。', timeline: w === '3 個月內' ? '1–3 個月' : w === '6–12 個月' ? '3–6 個月' : '1–3 個月' } });
+    toast(r.id + ' 已有合適方案，狀態變為「有方案待您確認」');
+  };
+  const simAgree = () => {
+    const c = opps.filter((o) => o.stage === 'confirming').sort((a, b) => (b.repliedAt || 0) - (a.repliedAt || 0) || b.id.localeCompare(a.id))[0];
+    if (!c) { toast('目前沒有等待客戶確認的商機'); return; }
+    const d = DM.DEMO_CLIENTS[parseInt(c.id.slice(-4), 10) % DM.DEMO_CLIENTS.length];
+    patchOpp(c.id, { stage: 'agreed', reveal: { company: d[0], contact: d[1], phone: '02-1234-5678（示範）' } });
+    toast(c.id + ' 客戶已同意，已揭露客戶身分');
+  };
+  const resetAll = () => {
+    try { localStorage.removeItem(STORE_KEY); } catch (e) {}
+    setRecords(DM.demoRecords()); setDraft(DM.blankAnswers()); setTrial(DM.trialDefaults()); setOpps(DM.seedOpps()); setProfile(DM.seedProfile()); setOf({ cat: '全部', country: '全部', status: '全部', q: '' }); setSf({ cat: '全部', dept: '全部', q: '' }); setRq(''); setRst('全部'); setStep(1);
+    go('tx-home'); toast('已重設為示範資料');
+  };
+
+  const base = ['總會服務', '找數位轉型'];
+  const names = { 'tx-home': '總覽', 'tx-assess': '機會點自評', 'tx-solutions': '解決方案', 'tx-trial': '效益試算', 'tx-records': '我的評估' };
+  let crumbs;
+  const pnames = { 'pt-inbox': '收到的合作機會', 'pt-deals': '我的商機', 'pt-profile': '服務能力檔案', 'pt-stats': '成效與結算' };
+  if (nav.indexOf('pt-') === 0) { crumbs = ['我的', pnames[nav]]; if (oppId) crumbs.push(oppId); }
+  else if (nav.indexOf('out:') === 0) crumbs = ['SENSE', nav.slice(4)];
+  else { crumbs = [...base, names[nav]]; if (solCode) crumbs.push(solCode); if (recId) crumbs.push(recId); }
+
+  let screen;
+  if (nav.indexOf('pt-') === 0) {
+    if (curOpp) screen = <OppDetail key={curOpp.id} o={curOpp} profile={profile} back={oppFrom} onBack={() => setOppId(null)} onReply={(rp) => partnerReply(curOpp, rp)} onAdvance={(st) => partnerAdvance(curOpp, st)} />;
+    else if (nav === 'pt-inbox') screen = <InboxPage opps={opps} profile={profile} onOpen={(id) => openOpp(id, 'inbox')} f={of} setF={setOf} />;
+    else if (nav === 'pt-deals') screen = <DealsPage opps={opps} onOpen={(id) => openOpp(id, 'deals')} />;
+    else if (nav === 'pt-profile') screen = <ProfilePage key={JSON.stringify(profile).length} profile={profile} setProfile={setProfile} />;
+    else screen = <StatsPage opps={opps} onOpen={(id) => openOpp(id, 'stats')} />;
+  }
+  else if (nav.indexOf('out:') === 0) screen = <OutOfScope name={nav.slice(4)} onBack={() => go('tx-home')} />;
+  else if (nav === 'tx-home') screen = <HomePage records={records} go={go} openRecord={openRecord} />;
+  else if (nav === 'tx-assess') screen = <AssessPage A={draft} setA={setDraft} step={step} setStep={setStep} onGenerate={generate} go={go} />;
+  else if (nav === 'tx-solutions') screen = solCode
+    ? <SolutionDetail code={solCode} onBack={() => setSolCode(null)} onUse={useMyNumbers} go={go}
+        onContact={(s) => setContact({ sol: s })} />
+    : <SolutionsPage f={sf} setF={setSf} onOpen={setSolCode} />;
+  else if (nav === 'tx-trial') screen = <TrialPage T={trial} setT={setTrial} go={go} />;
+  else if (nav === 'tx-records') screen = rec
+    ? <ReportPage rec={rec} onBack={() => setRecId(null)} onContact={() => (rec.status === 'advisor' || rec.contact) ? toast('您已送出聯繫需求，顧問將於 2 個工作天內聯繫您') : setContact({ recId: rec.id })}
+        onAgree={() => { patchRec(rec.id, { status: 'scheduled' }); toast('已通知顧問安排洽談，將與您確認時間'); }}
+        onDecline={() => { patchRec(rec.id, { status: 'done' }); toast('已記錄，暫不安排洽談；之後有需要可再請顧問聯繫'); }}
+        onRedo={() => redo(rec)} />
+    : <RecordsPage records={records} onOpen={openRecord} go={go} q={rq} setQ={setRq} st={rst} setSt={setRst} />;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: mobile ? 'column' : 'row', width: '100%', height: '100%', minWidth: 0 }}>
+      <Sidebar mobile={mobile} open={menuOpen} setOpen={setMenuOpen} active={nav} onNavigate={go} onReset={resetAll} pending={opps.filter((o) => o.stage === 'pushed' && !isOverdue(o)).length} />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0, minHeight: 0 }}>
+        {!mobile && <Header crumbs={crumbs} />}
+        <div ref={scroller} style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', background: '#FAFCFF', minWidth: 0 }}>{screen}</div>
+      </div>
+      <button type="button" aria-label="示範設定" onClick={() => setDemoOpen(!demoOpen)} style={{ position: 'fixed', right: 14, bottom: 14, width: 34, height: 34, borderRadius: 17, border: '1px solid #E3E3E3', background: '#fff', color: '#999', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 60, boxShadow: '0 2px 8px rgba(0,0,0,.08)' }}><Icon name="gear" size={16} /></button>
+      {demoOpen && (
+        <div role="dialog" aria-label="示範設定" style={{ position: 'fixed', right: 14, bottom: 56, width: 300, maxWidth: 'calc(100vw - 28px)', background: '#fff', border: '1px solid #E3E3E3', borderRadius: 8, boxShadow: '0 10px 30px rgba(35,55,128,.18)', padding: 16, zIndex: 60 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}><b style={{ fontWeight: 500 }}>示範設定</b><button type="button" aria-label="關閉示範設定" onClick={() => setDemoOpen(false)} style={{ border: 0, background: 'none', color: '#999', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button></div>
+          <div style={{ fontSize: 12, color: '#999', lineHeight: 1.6, marginBottom: 12 }}>用來示範平台上其他企業的動作，讓兩邊的畫面連動。</div>
+          <div style={{ display: 'grid', gap: 8 }}>
+            <Button variant="secondary" block onClick={simReply}>模擬合作夥伴回覆最新一筆評估</Button>
+            <Button variant="secondary" block onClick={simAgree}>模擬客戶同意最新一筆有興趣的商機</Button>
+          </div>
+        </div>
+      )}
+      <ContactModal open={!!contact} onClose={() => setContact(null)} onSubmit={submitContact}
+        context={contact && contact.sol ? '關於「' + contact.sol.title + '」，顧問會說明適合的做法與評估方式。' : '顧問會依這份評估報告與您聯繫。'} />
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
